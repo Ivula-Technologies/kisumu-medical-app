@@ -52,7 +52,7 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
 
   const stats: Array<{ value: string; label: string; sub: string; tab: string }> = [
     { value: '261', label: 'Health facilities', sub: '138 government-owned', tab: 'Overview' },
-    { value: '2,998', label: 'Community health promoters', sub: '280 community units on eCHIS', tab: 'Data Quality' },
+    { value: '2,998', label: 'Community health promoters', sub: '280 community units, 307,185 households', tab: 'Data Quality' },
     { value: '7', label: 'Sub-counties monitored', sub: 'Lake Victoria basin', tab: 'Disease Signals' },
     { value: '92.7%', label: 'Facilities reporting weekly', sub: '242 of 261 this week', tab: 'Data Quality' },
     { value: '4.2 h', label: 'Median alert verification', sub: 'Down from 18.5 h at baseline', tab: 'Pilot M&E' },
@@ -123,10 +123,11 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
         <div className="l-wrap l-hero-grid">
           <div className="l-hero-copy">
             <p className="eyebrow">Integrated Disease Surveillance and Response · Epi week 42</p>
-            <h1>Early warning for Kisumu County's health system</h1>
+            <h1>Earlier action and better resource allocation for Kisumu County</h1>
             <p className="l-lede">
-              Routine reports from eCHIS, KenyaEMR and KHIS become weekly disease signals and medicine supply
-              forecasts for all 7 sub-counties. Officers verify every alert before anyone acts on it.
+              Community and facility data already held in eCHIS, KenyaEMR and KHIS become weekly disease signals
+              and medicine supply forecasts for all 7 sub-counties. Officers verify every alert before anyone acts
+              on it.
             </p>
             <div className="actions">
               <button type="button" className="btn btn-accent btn-lg" onClick={() => onEnterDashboard('Overview')}>

@@ -163,6 +163,7 @@ export function OverviewPage({ onOpenSignals }: { onOpenSignals: () => void }) {
               { label: 'Government-owned', value: facilitySnapshot.governmentOwned.toLocaleString() },
               { label: 'Community units', value: facilitySnapshot.communityUnits.toLocaleString() },
               { label: 'Health promoters', value: facilitySnapshot.chps.toLocaleString() },
+              { label: 'Households served', value: facilitySnapshot.households.toLocaleString() },
             ]}
           />
         </Panel>
