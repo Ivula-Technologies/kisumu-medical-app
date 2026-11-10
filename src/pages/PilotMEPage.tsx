@@ -1,4 +1,5 @@
 import {
+  overallPilotStatus,
   pilotIndicators,
   pilotMESummary,
   pilotTrendData,
@@ -117,7 +118,7 @@ export function PilotMEPage() {
         </div>
       </Panel>
 
-      <Panel eyebrow="Pilot summary" title="Overall status" aside={<Pill>{pilotMESummary.overallStatus}</Pill>}>
+      <Panel eyebrow="Pilot summary" title="Overall status" aside={<Pill>{overallPilotStatus()}</Pill>}>
         <Facts
           items={[
             { label: 'Active sub-counties', value: pilotMESummary.activePilotSubCounties },

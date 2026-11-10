@@ -16,7 +16,6 @@ export type PilotMESummary = {
   activePilotSubCounties: number
   totalFacilitiesInPilot: number
   weeklyActiveUsers: number
-  overallStatus: 'On Track' | 'At Risk' | 'Off Track'
 }
 
 export const pilotIndicators: PilotIndicator[] = [
@@ -134,7 +133,6 @@ export const pilotMESummary: PilotMESummary = {
   activePilotSubCounties: 7,
   totalFacilitiesInPilot: 261,
   weeklyActiveUsers: 47,
-  overallStatus: 'On Track',
 }
 
 export const subCountyPilotPerformance = [
@@ -146,3 +144,12 @@ export const subCountyPilotPerformance = [
   { subCounty: 'Nyando', timeliness: 88.0, completeness: 92.0, verificationTime: 4.5, mape: 15.5, activeUsers: 6, signalActionRate: 72.0, stockoutPrevention: 62.0, coverageGapResponse: 50.0 },
   { subCounty: 'Muhoroni', timeliness: 86.8, completeness: 91.0, verificationTime: 5.0, mape: 17.2, activeUsers: 4, signalActionRate: 65.0, stockoutPrevention: 52.0, coverageGapResponse: 40.0 },
 ]
+/**
+ * The pilot is only as healthy as its weakest indicator: Off Track if any
+ * indicator is off track, At Risk if any is at risk, otherwise On Track.
+ */
+export function overallPilotStatus(indicators: PilotIndicator[] = pilotIndicators): PilotIndicator['status'] {
+  if (indicators.some((i) => i.status === 'Off Track')) return 'Off Track'
+  if (indicators.some((i) => i.status === 'At Risk')) return 'At Risk'
+  return 'On Track'
+}
