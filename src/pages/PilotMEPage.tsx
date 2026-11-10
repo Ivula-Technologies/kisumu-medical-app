@@ -130,6 +130,7 @@ export function PilotMEPage() {
         <div className="callout">
           <h3>Indicators needing attention</h3>
           <p>{atRisk.map((i) => i.name).join(', ') || 'None. Every indicator is on track.'}</p>
+          <p className="callout-note">Overall status follows the weakest indicator.</p>
         </div>
       </Panel>
 

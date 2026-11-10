@@ -909,6 +909,12 @@ textarea.input {
   color: var(--ink);
 }
 
+.callout .callout-note {
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
 /* ── Tables ───────────────────────────────────────────────────── */
 
 .table-wrap {
