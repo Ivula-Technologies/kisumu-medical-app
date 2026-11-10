@@ -74,6 +74,13 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
       action: () => onEnterDashboard('Commodity Forecast'),
     },
     {
+      icon: 'coverage',
+      title: 'Service coverage gaps',
+      text: 'Household visits, antenatal care, skilled delivery and immunisation are compared with targets to show which community units are being missed, so outreach goes where it is needed.',
+      link: 'See coverage gaps',
+      action: () => onEnterDashboard('Service Coverage'),
+    },
+    {
       icon: 'assistant',
       title: 'AI decision support',
       text: 'A copilot summarises what the numbers show in plain language and drafts advisories. Every output is labelled, logged and held for human confirmation.',
@@ -125,8 +132,8 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
             <p className="eyebrow">Integrated Disease Surveillance and Response · Epi week 42</p>
             <h1>Earlier action and better resource allocation for Kisumu County</h1>
             <p className="l-lede">
-              Community and facility data already held in eCHIS, KenyaEMR and KHIS become weekly disease signals
-              and medicine supply forecasts for all 7 sub-counties. Officers verify every alert before anyone acts
+              Community and facility data already held in eCHIS, KenyaEMR and KHIS become weekly disease signals,
+              medicine supply forecasts and service coverage gaps for all 7 sub-counties. Officers verify every alert before anyone acts
               on it.
             </p>
             <div className="actions">
@@ -375,7 +382,7 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
           <nav aria-label="Dashboard sections">
             <p className="nav-label">Dashboard</p>
             <ul className="l-links">
-              {['Overview', 'Disease Signals', 'Commodity Forecast', 'Data Quality', 'Pilot M&E', 'Data & Governance'].map((tab) => (
+              {['Overview', 'Disease Signals', 'Commodity Forecast', 'Service Coverage', 'Data Quality', 'Pilot M&E', 'Data & Governance'].map((tab) => (
                 <li key={tab}>
                   <button type="button" onClick={() => onEnterDashboard(tab)}>
                     {tab}

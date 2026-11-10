@@ -6,6 +6,7 @@ import { commodityForecasts, subCountyStock } from './services/commodityForecast
 import { sourceQuality, facilityReporting, dataQualityIssues, facilitiesNotReporting } from './services/dataQualityData'
 import { pilotIndicators, pilotMESummary, subCountyPilotPerformance } from './services/pilotMEData'
 import { dataSources, rolePermissions, accessLog, governanceNotes } from './services/dataGovernanceData'
+import { coverageGaps as initialCoverageGaps, coverageIndicators, subCountyCoverage, type CoverageGap, type GapStatus } from './services/serviceCoverageData'
 import { getGroqModel } from './services/groqService'
 import { downloadCsv, type CsvRow } from './utils/csv'
 import { AiCopilotDrawer } from './components/AiCopilotDrawer'
@@ -16,24 +17,26 @@ import { Icon, type IconName } from './components/ui'
 import { OverviewPage } from './pages/OverviewPage'
 import { DiseaseSignalsPage } from './pages/DiseaseSignalsPage'
 import { CommodityForecastPage, type ApprovalStatus } from './pages/CommodityForecastPage'
+import { ServiceCoveragePage } from './pages/ServiceCoveragePage'
 import { DataQualityPage } from './pages/DataQualityPage'
 import { PilotMEPage } from './pages/PilotMEPage'
 import { GovernancePage } from './pages/GovernancePage'
 
-const TABS = ['Overview', 'Disease Signals', 'Commodity Forecast', 'Data Quality', 'Pilot M&E', 'Data & Governance'] as const
+const TABS = ['Overview', 'Disease Signals', 'Commodity Forecast', 'Service Coverage', 'Data Quality', 'Pilot M&E', 'Data & Governance'] as const
 type Tab = (typeof TABS)[number]
 
 const TAB_META: Record<Tab, { icon: IconName; eyebrow: string }> = {
   Overview: { icon: 'overview', eyebrow: 'County operations' },
   'Disease Signals': { icon: 'signals', eyebrow: 'IDSR signal detection' },
   'Commodity Forecast': { icon: 'commodity', eyebrow: 'Essential medicines supply' },
+  'Service Coverage': { icon: 'coverage', eyebrow: 'Community and facility service gaps' },
   'Data Quality': { icon: 'quality', eyebrow: 'Reporting and validation' },
   'Pilot M&E': { icon: 'pilot', eyebrow: 'Monitoring and evaluation' },
   'Data & Governance': { icon: 'governance', eyebrow: 'Data protection and access' },
 }
 
 const NAV_GROUPS: Array<{ label: string; tabs: Tab[] }> = [
-  { label: 'Surveillance', tabs: ['Overview', 'Disease Signals', 'Commodity Forecast'] },
+  { label: 'Surveillance', tabs: ['Overview', 'Disease Signals', 'Commodity Forecast', 'Service Coverage'] },
   { label: 'Assurance', tabs: ['Data Quality', 'Pilot M&E', 'Data & Governance'] },
 ]
 
@@ -79,7 +82,22 @@ function App() {
     loadStored('kisumu_commodity_approvals', {}),
   )
 
-  const openSignals = signals.filter((s) => s.status === 'Unverified' || s.status === 'Under investigation').length
+  const [gaps, setGaps] = useState<CoverageGap[]>(() => {
+    // Only the review state is stored, so the seeded figures stay current.
+    const saved = loadStored<Record<string, GapStatus>>('kisumu_coverage_gap_status', {})
+    return initialCoverageGaps.map((g) => ({ ...g, status: saved[g.id] ?? g.status }))
+  })
+
+  const navCounts: Partial<Record<Tab, { count: number; label: string }>> = {
+    'Disease Signals': {
+      count: signals.filter((s) => s.status === 'Unverified' || s.status === 'Under investigation').length,
+      label: 'signals awaiting verification',
+    },
+    'Service Coverage': {
+      count: gaps.filter((g) => g.status === 'Unreviewed').length,
+      label: 'coverage gaps awaiting review',
+    },
+  }
 
   const goTo = (tab: Tab) => {
     setActiveTab(tab)
@@ -131,6 +149,14 @@ function App() {
     })
   }
 
+  const changeGapStatus = (id: string, status: GapStatus) => {
+    setGaps((prev) => {
+      const updated = prev.map((g) => (g.id === id ? { ...g, status } : g))
+      store('kisumu_coverage_gap_status', Object.fromEntries(updated.map((g) => [g.id, g.status])))
+      return updated
+    })
+  }
+
   const exportCurrent = () => {
     const exports: Record<Tab, { name: string; rows: CsvRow[] }> = {
       Overview: {
@@ -165,6 +191,16 @@ function App() {
           [],
           ['Sub-county', 'Commodity', 'Stock on Hand', 'Months of Stock', 'Risk Status'],
           ...subCountyStock.map((s) => [s.subCounty, s.commodity, s.stockOnHand, s.monthsOfStock.toFixed(1), s.riskStatus]),
+        ],
+      },
+      'Service Coverage': {
+        name: 'kisumu-service-coverage',
+        rows: [
+          ['Sub-county', 'Households', 'Community Units', 'CHPs', ...coverageIndicators.map((i) => `${i.name} % (target ${i.target})`)],
+          ...subCountyCoverage.map((sc) => [sc.subCounty, sc.households, sc.communityUnits, sc.chps, ...coverageIndicators.map((i) => sc.coverage[i.id])]),
+          [],
+          ['Gap ID', 'Sub-county', 'Area', 'Indicator', 'Coverage %', 'Target %', 'Community Units', 'Households', 'Why Flagged', 'Suggested Action', 'Status'],
+          ...gaps.map((g) => [g.id, g.subCounty, g.area, coverageIndicators.find((i) => i.id === g.indicator)?.name ?? g.indicator, g.coverage, coverageIndicators.find((i) => i.id === g.indicator)?.target ?? '', g.communityUnits, g.households, g.whyFlagged, g.suggestedAction, g.status]),
         ],
       },
       'Data Quality': {
@@ -279,9 +315,9 @@ function App() {
                 >
                   <Icon name={TAB_META[tab].icon} />
                   <span>{tab}</span>
-                  {tab === 'Disease Signals' && openSignals > 0 ? (
-                    <span className="nav-count" title={`${openSignals} signals awaiting verification`}>
-                      {openSignals}
+                  {navCounts[tab]?.count ? (
+                    <span className="nav-count" title={`${navCounts[tab].count} ${navCounts[tab].label}`}>
+                      {navCounts[tab].count}
                     </span>
                   ) : null}
                 </button>
@@ -379,6 +415,8 @@ function App() {
               onAskCopilot={() => setIsCopilotOpen(true)}
               lastSync={lastSync}
             />
+          ) : activeTab === 'Service Coverage' ? (
+            <ServiceCoveragePage gaps={gaps} onStatusChange={changeGapStatus} onAskCopilot={() => setIsCopilotOpen(true)} />
           ) : activeTab === 'Data Quality' ? (
             <DataQualityPage lastSync={lastSync} />
           ) : activeTab === 'Pilot M&E' ? (

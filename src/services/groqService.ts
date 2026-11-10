@@ -224,3 +224,39 @@ Provide a structured Decision-Support brief:
     { temperature: 0.2, max_tokens: 1000 }
   );
 }
+
+export async function generateCoverageGapBrief(gap: {
+  indicator: string;
+  subCounty: string;
+  area: string;
+  coverage: number;
+  target: number;
+  recent: number[];
+  communityUnits: number;
+  households: number;
+  whyFlagged: string;
+}): Promise<string> {
+  const prompt = `Prepare an outreach planning brief for a service coverage gap in Kisumu County. Use only the aggregated figures below and do not invent facts:
+- Indicator: ${gap.indicator}
+- Location: ${gap.area}, ${gap.subCounty} sub-county
+- Current coverage: ${gap.coverage}% (target ${gap.target}%)
+- Last three months: ${gap.recent.join('%, ')}%
+- Community units affected: ${gap.communityUnits}
+- Households in those units: ${gap.households.toLocaleString()}
+- Why flagged: ${gap.whyFlagged}
+
+Provide a structured Decision-Support brief:
+1. **Gap Summary**: What the numbers show, in plain language.
+2. **Likely Contributing Factors to Verify**: Hypotheses for the sub-county team to check, clearly labelled as unverified.
+3. **Outreach Options**: Practical actions for Community Health Promoters and the nearest facilities.
+4. **What to Monitor**: Which figures should move, and by when, if outreach works.
+5. **Sign-off Requirement**: Clear statement that the sub-county health management team must approve any outreach plan.`;
+
+  return callGroqChat(
+    [
+      { role: 'system', content: KISUMU_SYSTEM_CONTEXT },
+      { role: 'user', content: prompt },
+    ],
+    { temperature: 0.2, max_tokens: 1000 }
+  );
+}

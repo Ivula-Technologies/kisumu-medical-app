@@ -28,6 +28,11 @@ const DEFAULT_QUESTIONS: Record<string, string[]> = {
     'Provide an inter-facility redistribution plan for Nyando',
     'What buffer stock should be requested from KEMSA urgently?',
   ],
+  'Service Coverage': [
+    'Which sub-counties are furthest below their coverage targets?',
+    'Explain the household visit gap in Muhoroni and what to verify',
+    'Draft an outreach plan for the Nyakach immunisation gap',
+  ],
   'Data Quality': [
     'Which facilities are non-reporting and what is the escalation procedure?',
     'How do eCHIS, KenyaEMR and KHIS completeness metrics compare?',
