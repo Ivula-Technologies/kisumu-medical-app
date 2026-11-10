@@ -17,6 +17,7 @@ const TREND_META: Record<keyof typeof pilotTrendData, { label: string; unit: str
   activeUsers: { label: 'Weekly active users', unit: '' },
   signalActionRate: { label: 'Signals acted on', unit: '%' },
   stockoutPrevention: { label: 'Stockouts prevented', unit: '%' },
+  coverageGapResponse: { label: 'Coverage gaps with outreach planned', unit: '%' },
 }
 
 function format(value: number | string, unit: string): string {
@@ -144,6 +145,7 @@ export function PilotMEPage() {
                 <th className="r">Active users</th>
                 <th className="r">Signals acted on</th>
                 <th className="r">Stockouts prevented</th>
+                <th className="r">Gap response</th>
               </tr>
             </thead>
             <tbody>
@@ -157,6 +159,7 @@ export function PilotMEPage() {
                   <td className="r num">{sc.activeUsers}</td>
                   <td className="r num">{sc.signalActionRate}%</td>
                   <td className="r num">{sc.stockoutPrevention}%</td>
+                  <td className="r num">{sc.coverageGapResponse}%</td>
                 </tr>
               ))}
             </tbody>

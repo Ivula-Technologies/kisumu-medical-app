@@ -53,7 +53,7 @@ Roles are stored in a separate `user_roles` table with row-level security, not o
 - Facilities that failed to report
 
 ### 6. Pilot M&E
-- Timeliness, completeness, alert verification time, forecast error (MAPE), weekly active users
+- Timeliness, completeness, alert verification time, forecast error (MAPE), weekly active users, coverage gap response
 - Indicators compared with baseline
 
 ### 7. Data & Governance

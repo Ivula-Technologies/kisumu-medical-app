@@ -225,8 +225,8 @@ function App() {
           ['Indicator ID', 'Name', 'Current Value', 'Baseline Value', 'Target Value', 'Unit', 'Trend', 'Status'],
           ...pilotIndicators.map((i) => [i.id, i.name, i.currentValue, i.baselineValue, i.targetValue, i.unit, i.trend, i.status]),
           [],
-          ['Sub-county', 'Timeliness %', 'Completeness %', 'Verification Time (h)', 'MAPE %', 'Active Users', 'Signal Action %', 'Stockout Prevention %'],
-          ...subCountyPilotPerformance.map((s) => [s.subCounty, s.timeliness, s.completeness, s.verificationTime, s.mape, s.activeUsers, s.signalActionRate, s.stockoutPrevention]),
+          ['Sub-county', 'Timeliness %', 'Completeness %', 'Verification Time (h)', 'MAPE %', 'Active Users', 'Signal Action %', 'Stockout Prevention %', 'Coverage Gap Response %'],
+          ...subCountyPilotPerformance.map((s) => [s.subCounty, s.timeliness, s.completeness, s.verificationTime, s.mape, s.activeUsers, s.signalActionRate, s.stockoutPrevention, s.coverageGapResponse]),
         ],
       },
       'Data & Governance': {
