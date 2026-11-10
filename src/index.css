@@ -1,9 +1,79 @@
+/* Design tokens — Kisumu Health Intelligence
+   Calm, institutional: ink navy chrome, deep teal for action, cool paper workspace.
+   Semantic colours (critical / high / moderate / ok / info) are separate from the brand. */
 :root {
-  font-family: Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Surfaces */
+  --bg: #f1f4f3;
+  --surface: #ffffff;
+  --surface-2: #f6f8f7;
+  --surface-3: #ebf0ef;
+
+  /* Ink */
+  --ink: #10242c;
+  --ink-2: #41565e;
+  --ink-3: #6b7f86;
+  --ink-inverse: #eef4f3;
+
+  /* Lines */
+  --line: #dde5e3;
+  --line-strong: #c3cfcd;
+
+  /* Brand */
+  --brand: #0a5f69;
+  --brand-strong: #074850;
+  --brand-soft: #e2f0ef;
+  --brand-line: #b5d6d4;
+
+  /* Chrome (sidebar, landing header) */
+  --chrome: #0d2029;
+  --chrome-2: #152c37;
+  --chrome-line: #24404c;
+  --chrome-ink: #dbe6e6;
+  --chrome-ink-2: #8fa5ab;
+  --chrome-accent: #5fc7c0;
+
+  /* Semantic */
+  --critical: #b42318;
+  --critical-soft: #fdecea;
+  --critical-line: #f3c2bc;
+  --high: #b9520b;
+  --high-soft: #fdf0e3;
+  --high-line: #f1cfa9;
+  --moderate: #8a6100;
+  --moderate-soft: #fbf4d8;
+  --moderate-line: #e8d590;
+  --ok: #1c7548;
+  --ok-soft: #e5f4eb;
+  --ok-line: #b4dcc4;
+  --info: #2a5b9f;
+  --info-soft: #e8f0fa;
+  --info-line: #bdd1ec;
+
+  /* Type */
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.625rem;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --shadow-pop: 0 12px 32px rgba(13, 32, 41, 0.16), 0 2px 6px rgba(13, 32, 41, 0.08);
+
+  --sidebar-w: 248px;
+  --topbar-h: 60px;
+
+  font-family: var(--font-sans);
+  font-size: 16px;
   line-height: 1.5;
-  font-weight: 400;
-  color: #183847;
-  background: #edf5f6;
+  color: var(--ink);
+  background: var(--bg);
   color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -11,31 +81,22 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-html {
-  background: #edf5f6;
+html,
+body {
+  margin: 0;
+  background: var(--bg);
 }
 
 body {
-  margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #edf5f6;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-img {
-  max-width: 100%;
-  display: block;
+  font-size: var(--text-md);
 }
 
 #root {
@@ -45,6 +106,83 @@ img {
 h1,
 h2,
 h3,
-p {
-  margin-top: 0;
+h4,
+p,
+ul,
+ol,
+dl,
+dd {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 600;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+img,
+svg {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: var(--brand);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.mono,
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
