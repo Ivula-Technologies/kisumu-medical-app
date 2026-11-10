@@ -16,7 +16,6 @@ export type PilotMESummary = {
   activePilotSubCounties: number
   totalFacilitiesInPilot: number
   weeklyActiveUsers: number
-  overallStatus: 'On Track' | 'At Risk' | 'Off Track'
 }
 
 export const pilotIndicators: PilotIndicator[] = [
@@ -104,6 +103,18 @@ export const pilotIndicators: PilotIndicator[] = [
     status: 'At Risk',
     subCounties: ['Kisumu Central', 'Kisumu East', 'Kisumu West', 'Seme', 'Nyakach', 'Nyando', 'Muhoroni'],
   },
+  {
+    id: 'PI-08',
+    name: 'Coverage Gap Response',
+    description: 'Percentage of flagged service coverage gaps with outreach planned within 14 days',
+    currentValue: 54.0,
+    baselineValue: 22.0,
+    targetValue: 80,
+    unit: '%',
+    trend: 'improving',
+    status: 'At Risk',
+    subCounties: ['Kisumu Central', 'Kisumu East', 'Kisumu West', 'Seme', 'Nyakach', 'Nyando', 'Muhoroni'],
+  },
 ]
 
 export const pilotTrendData = {
@@ -114,6 +125,7 @@ export const pilotTrendData = {
   activeUsers: [23, 26, 29, 32, 36, 40, 44, 47],
   signalActionRate: [41, 46, 51, 56, 61, 66, 70, 73],
   stockoutPrevention: [34, 38, 42, 47, 51, 55, 59, 63],
+  coverageGapResponse: [22, 27, 31, 36, 41, 46, 50, 54],
 }
 
 export const pilotMESummary: PilotMESummary = {
@@ -121,15 +133,23 @@ export const pilotMESummary: PilotMESummary = {
   activePilotSubCounties: 7,
   totalFacilitiesInPilot: 261,
   weeklyActiveUsers: 47,
-  overallStatus: 'On Track',
 }
 
 export const subCountyPilotPerformance = [
-  { subCounty: 'Kisumu Central', timeliness: 93.2, completeness: 95.8, verificationTime: 3.1, mape: 12.4, activeUsers: 12, signalActionRate: 81.5, stockoutPrevention: 70.0 },
-  { subCounty: 'Kisumu East', timeliness: 90.5, completeness: 94.2, verificationTime: 3.8, mape: 13.1, activeUsers: 8, signalActionRate: 78.2, stockoutPrevention: 68.0 },
-  { subCounty: 'Kisumu West', timeliness: 89.8, completeness: 93.5, verificationTime: 4.2, mape: 14.0, activeUsers: 7, signalActionRate: 75.0, stockoutPrevention: 65.0 },
-  { subCounty: 'Seme', timeliness: 87.2, completeness: 91.8, verificationTime: 4.8, mape: 15.2, activeUsers: 5, signalActionRate: 70.5, stockoutPrevention: 60.0 },
-  { subCounty: 'Nyakach', timeliness: 85.5, completeness: 90.2, verificationTime: 5.2, mape: 16.8, activeUsers: 5, signalActionRate: 68.0, stockoutPrevention: 55.0 },
-  { subCounty: 'Nyando', timeliness: 88.0, completeness: 92.0, verificationTime: 4.5, mape: 15.5, activeUsers: 6, signalActionRate: 72.0, stockoutPrevention: 62.0 },
-  { subCounty: 'Muhoroni', timeliness: 86.8, completeness: 91.0, verificationTime: 5.0, mape: 17.2, activeUsers: 4, signalActionRate: 65.0, stockoutPrevention: 52.0 },
+  { subCounty: 'Kisumu Central', timeliness: 93.2, completeness: 95.8, verificationTime: 3.1, mape: 12.4, activeUsers: 12, signalActionRate: 81.5, stockoutPrevention: 70.0, coverageGapResponse: 68.0 },
+  { subCounty: 'Kisumu East', timeliness: 90.5, completeness: 94.2, verificationTime: 3.8, mape: 13.1, activeUsers: 8, signalActionRate: 78.2, stockoutPrevention: 68.0, coverageGapResponse: 64.0 },
+  { subCounty: 'Kisumu West', timeliness: 89.8, completeness: 93.5, verificationTime: 4.2, mape: 14.0, activeUsers: 7, signalActionRate: 75.0, stockoutPrevention: 65.0, coverageGapResponse: 60.0 },
+  { subCounty: 'Seme', timeliness: 87.2, completeness: 91.8, verificationTime: 4.8, mape: 15.2, activeUsers: 5, signalActionRate: 70.5, stockoutPrevention: 60.0, coverageGapResponse: 52.0 },
+  { subCounty: 'Nyakach', timeliness: 85.5, completeness: 90.2, verificationTime: 5.2, mape: 16.8, activeUsers: 5, signalActionRate: 68.0, stockoutPrevention: 55.0, coverageGapResponse: 44.0 },
+  { subCounty: 'Nyando', timeliness: 88.0, completeness: 92.0, verificationTime: 4.5, mape: 15.5, activeUsers: 6, signalActionRate: 72.0, stockoutPrevention: 62.0, coverageGapResponse: 50.0 },
+  { subCounty: 'Muhoroni', timeliness: 86.8, completeness: 91.0, verificationTime: 5.0, mape: 17.2, activeUsers: 4, signalActionRate: 65.0, stockoutPrevention: 52.0, coverageGapResponse: 40.0 },
 ]
+/**
+ * The pilot is only as healthy as its weakest indicator: Off Track if any
+ * indicator is off track, At Risk if any is at risk, otherwise On Track.
+ */
+export function overallPilotStatus(indicators: PilotIndicator[] = pilotIndicators): PilotIndicator['status'] {
+  if (indicators.some((i) => i.status === 'Off Track')) return 'Off Track'
+  if (indicators.some((i) => i.status === 'At Risk')) return 'At Risk'
+  return 'On Track'
+}

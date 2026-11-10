@@ -1,135 +1,75 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 
-// Real-time clock with Kisumu timezone (EAT = UTC+3)
+/** Live clock in East Africa Time (UTC+3). */
 export function RealTimeClock() {
-  const [time, setTime] = useState(new Date());
+  const [time, setTime] = useState(() => new Date())
 
   useEffect(() => {
-    const interval = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(() => setTime(new Date()), 1000)
+    return () => clearInterval(interval)
+  }, [])
 
   const formatted = time.toLocaleString('en-KE', {
     timeZone: 'Africa/Nairobi',
     weekday: 'short',
     day: '2-digit',
     month: 'short',
-    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
-  });
+  })
 
-  return <span className="realtime-clock">{formatted} EAT</span>;
+  return <span className="clock">{formatted} EAT</span>
 }
 
-// Animated counter that counts up to a target value
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
 interface AnimatedCounterProps {
-  target: number;
-  suffix?: string;
-  prefix?: string;
-  duration?: number;
-  decimals?: number;
+  target: number
+  duration?: number
+  decimals?: number
 }
 
-export function AnimatedCounter({ target, suffix = '', prefix = '', duration = 1200, decimals = 0 }: AnimatedCounterProps) {
-  const [current, setCurrent] = useState(0);
+/** Counts up to the target once on mount. Respects reduced-motion. */
+export function AnimatedCounter({ target, duration = 900, decimals = 0 }: AnimatedCounterProps) {
+  const [current, setCurrent] = useState(() => (prefersReducedMotion() ? target : 0))
 
   useEffect(() => {
-    const start = performance.now();
+    if (prefersReducedMotion()) return
+    const start = performance.now()
+    let raf = 0
     const animate = (now: number) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      // Ease out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCurrent(parseFloat((eased * target).toFixed(decimals)));
-      if (progress < 1) requestAnimationFrame(animate);
-    };
-    const raf = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration, decimals]);
+      const progress = Math.min((now - start) / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setCurrent(progress < 1 ? eased * target : target)
+      if (progress < 1) raf = requestAnimationFrame(animate)
+    }
+    raf = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(raf)
+  }, [target, duration])
 
-  return (
-    <span className="animated-counter">
-      {prefix}{decimals > 0 ? current.toFixed(decimals) : Math.floor(current).toLocaleString()}{suffix}
-    </span>
-  );
+  return <>{decimals > 0 ? current.toFixed(decimals) : Math.floor(current).toLocaleString()}</>
 }
 
-// Status badge with color
-interface StatusBadgeProps {
-  status: 'online' | 'syncing' | 'offline' | 'warning';
-  label: string;
-}
+const SOURCES = [
+  { name: 'eCHIS', status: 'Online' },
+  { name: 'KenyaEMR', status: 'Online' },
+  { name: 'KHIS', status: 'Syncing' },
+  { name: 'Groq Cloud AI', status: 'Online' },
+] as const
 
-export function StatusBadge({ status, label }: StatusBadgeProps) {
+/** Connection state of each upstream system. */
+export function SourceStatusList() {
   return (
-    <span className={`status-badge status-badge-${status}`}>
-      <span className="status-badge-dot" />
-      {label}
-    </span>
-  );
-}
-
-// Kisumu-specific system status indicator
-export function SystemStatusBar() {
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => setTick((t) => t + 1), 30000); // refresh every 30s
-    return () => clearInterval(interval);
-  }, []);
-
-  const sources = [
-    { name: 'eCHIS', status: 'online' as const },
-    { name: 'KenyaEMR', status: 'online' as const },
-    { name: 'KHIS', status: 'syncing' as const },
-    { name: 'Groq Cloud AI', status: 'online' as const },
-  ];
-
-  return (
-    <div className="system-status-bar">
-      {sources.map((src) => (
-        <StatusBadge key={`${src.name}-${tick}`} status={src.status} label={src.name} />
+    <ul className="sources">
+      {SOURCES.map((src) => (
+        <li key={src.name}>
+          <span className={src.status === 'Syncing' ? 'dot dot-info pulse' : 'dot dot-ok'} aria-hidden="true" />
+          <span>{src.name}</span>
+          <span className="sources-state">{src.status}</span>
+        </li>
       ))}
-    </div>
-  );
-}
-
-// Auto-refreshing "last synced" live display
-export function LiveSyncIndicator({ baseTime }: { baseTime: string }) {
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => setElapsed((e) => e + 1), 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const label = elapsed === 0 ? baseTime : `${baseTime} (${elapsed}m ago)`;
-  return (
-    <span className="live-sync-indicator">
-      <span className="live-dot" />
-      {label}
-    </span>
-  );
-}
-
-// Progress bar for metrics
-interface MetricProgressBarProps {
-  value: number;
-  max?: number;
-  color?: 'teal' | 'green' | 'amber' | 'red';
-}
-
-export function MetricProgressBar({ value, max = 100, color = 'teal' }: MetricProgressBarProps) {
-  const pct = Math.min((value / max) * 100, 100);
-  return (
-    <div className="metric-progress-bar-track">
-      <div
-        className={`metric-progress-bar-fill metric-bar-${color}`}
-        style={{ width: `${pct}%` }}
-      />
-    </div>
-  );
+    </ul>
+  )
 }

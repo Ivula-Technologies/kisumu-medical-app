@@ -30,6 +30,7 @@ export type OverviewData = {
     governmentOwned: number
     communityUnits: number
     chps: number
+    households: number
   }
   metrics: {
     reportingThisWeek: number
@@ -51,6 +52,7 @@ export const overviewData: OverviewData = {
     governmentOwned: 138,
     communityUnits: 280,
     chps: 2998,
+    households: 307185,
   },
   metrics: {
     reportingThisWeek: 242,

@@ -4,10 +4,11 @@ Kisumu Health Intelligence is an AI-enabled decision-support prototype for the C
 
 ## Purpose
 
-The solution supports county-level public health leadership with two AI-enabled use cases only:
+The solution supports county-level public health leadership with three AI-enabled use cases:
 
 1. Disease signal detection: flag unusual weekly case counts for verification by public health teams.
 2. Commodity forecasting: forecast demand and stockout risk for essential medicines.
+3. Service coverage gaps: show which community units fall short of coverage targets so outreach can be directed.
 
 ## Target users and role model
 
@@ -41,15 +42,21 @@ Roles are stored in a separate `user_roles` table with row-level security, not o
 - Show stock on hand, monthly consumption, 3-month forecast, confidence band, months of stock left and risk status
 - Redistribution suggestions only, with human approval required
 
-### 4. Data Quality
+### 4. Service Coverage
+- Coverage against target by sub-county for household visits, antenatal care (4+ visits), skilled birth attendance and full immunisation
+- Households, community units and CHPs per sub-county
+- Priority gaps at community-unit cluster level, with a plain-language reason and a suggested action
+- Review states: Unreviewed, Outreach planned or Resolved, with sub-county team approval required
+
+### 5. Data Quality
 - Completeness, timeliness and validation issues by facility and source system
 - Facilities that failed to report
 
-### 5. Pilot M&E
-- Timeliness, completeness, alert verification time, forecast error (MAPE), weekly active users
+### 6. Pilot M&E
+- Timeliness, completeness, alert verification time, forecast error (MAPE), weekly active users, coverage gap response
 - Indicators compared with baseline
 
-### 6. Data & Governance
+### 7. Data & Governance
 - Connected sources with last-sync times
 - Role permissions and access log
 - Data minimisation notes

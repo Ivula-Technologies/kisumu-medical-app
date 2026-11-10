@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { askHealthCopilot, type ChatMessage, getGroqModel } from '../services/groqService';
+import { Icon } from './ui';
 
 interface AiCopilotDrawerProps {
   isOpen: boolean;
@@ -27,6 +28,11 @@ const DEFAULT_QUESTIONS: Record<string, string[]> = {
     'Provide an inter-facility redistribution plan for Nyando',
     'What buffer stock should be requested from KEMSA urgently?',
   ],
+  'Service Coverage': [
+    'Which sub-counties are furthest below their coverage targets?',
+    'Explain the household visit gap in Muhoroni and what to verify',
+    'Draft an outreach plan for the Nyakach immunisation gap',
+  ],
   'Data Quality': [
     'Which facilities are non-reporting and what is the escalation procedure?',
     'How do eCHIS, KenyaEMR and KHIS completeness metrics compare?',
@@ -46,53 +52,25 @@ const DEFAULT_QUESTIONS: Record<string, string[]> = {
 
 function MarkdownMessage({ content }: { content: string }) {
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        h1: ({ children }) => <h4 style={{ margin: '10px 0 4px', color: '#0b2b3a', fontSize: '1rem' }}>{children}</h4>,
-        h2: ({ children }) => <h5 style={{ margin: '10px 0 4px', color: '#0b4952', fontSize: '0.95rem' }}>{children}</h5>,
-        h3: ({ children }) => <h6 style={{ margin: '8px 0 4px', color: '#0d6f7a', fontSize: '0.88rem', fontWeight: 700 }}>{children}</h6>,
-        h4: ({ children }) => <strong style={{ display: 'block', margin: '6px 0 2px', color: '#17363f' }}>{children}</strong>,
-        p: ({ children }) => <p style={{ margin: '4px 0', lineHeight: 1.6 }}>{children}</p>,
-        strong: ({ children }) => <strong style={{ color: '#0b2b3a', fontWeight: 700 }}>{children}</strong>,
-        em: ({ children }) => <em style={{ color: '#4a6875' }}>{children}</em>,
-        ul: ({ children }) => <ul style={{ margin: '6px 0', paddingLeft: '18px', lineHeight: 1.6 }}>{children}</ul>,
-        ol: ({ children }) => <ol style={{ margin: '6px 0', paddingLeft: '18px', lineHeight: 1.6 }}>{children}</ol>,
-        li: ({ children }) => <li style={{ margin: '3px 0' }}>{children}</li>,
-        code: ({ children, className }) => {
-          const isBlock = className?.includes('language-');
-          return isBlock ? (
-            <pre style={{ background: '#f0f7f7', borderRadius: '8px', padding: '10px 14px', overflowX: 'auto', fontSize: '0.8rem', margin: '8px 0' }}>
-              <code>{children}</code>
-            </pre>
-          ) : (
-            <code style={{ background: 'rgba(13,111,122,0.1)', borderRadius: '4px', padding: '1px 6px', fontSize: '0.82rem', color: '#0b4952' }}>{children}</code>
-          );
-        },
-        blockquote: ({ children }) => (
-          <blockquote style={{ borderLeft: '3px solid #0d6f7a', margin: '8px 0', paddingLeft: '12px', color: '#4a6875', fontStyle: 'italic' }}>
-            {children}
-          </blockquote>
-        ),
-        table: ({ children }) => (
-          <div style={{ overflowX: 'auto', margin: '8px 0' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.8rem' }}>{children}</table>
-          </div>
-        ),
-        th: ({ children }) => (
-          <th style={{ background: '#0b2b3a', color: '#ecf7f8', padding: '6px 10px', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700 }}>{children}</th>
-        ),
-        td: ({ children }) => (
-          <td style={{ padding: '5px 10px', borderBottom: '1px solid #e0eded', verticalAlign: 'top' }}>{children}</td>
-        ),
-        hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(13,111,122,0.15)', margin: '12px 0' }} />,
-        a: ({ href, children }) => (
-          <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#0d6f7a', textDecoration: 'underline' }}>{children}</a>
-        ),
-      }}
-    >
-      {content}
-    </ReactMarkdown>
+    <div className="md">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          table: ({ children }) => (
+            <div className="table-wrap">
+              <table>{children}</table>
+            </div>
+          ),
+          a: ({ href, children }) => (
+            <a href={href} target="_blank" rel="noopener noreferrer">
+              {children}
+            </a>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }
 
@@ -106,18 +84,16 @@ export const AiCopilotDrawer: React.FC<AiCopilotDrawerProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: `**Jambo! 👋 Kisumu Health Intelligence AI Copilot**
+      content: `**Jambo.** I am the decision-support assistant for the County Department of Health, Kisumu.
 
-I am your decision-support assistant for the **County Department of Health, Kisumu County, Kenya**, powered by Groq Cloud.
+I can see aggregated data for **7 sub-counties** and **261 facilities**, and can help with:
 
-I have visibility across **7 sub-counties**, **261 facilities**, and can help with:
+- **Disease surveillance**: epidemiological signals and IDSR protocols
+- **Supply chain**: commodity forecasts and KEMSA redistribution
+- **Data quality**: reporting gaps and validation failures
+- **Governance**: Kenya Data Protection Act controls
 
-- 🦟 **Disease surveillance** — epidemiological signals, IDSR protocols
-- 💊 **Supply chain** — commodity forecasts, KEMSA redistribution
-- 📊 **Data quality** — reporting gaps, validation failures
-- 📋 **Governance** — Kenya Data Protection Act compliance
-
-> *All AI insights require human verification before action.*
+> All AI insights require human verification before action.
 
 How can I support your public health decision-making today?`,
     },
@@ -161,7 +137,7 @@ How can I support your public health decision-making today?`,
         ...prev,
         {
           role: 'assistant',
-          content: `⚠️ **Error contacting Groq Cloud AI**\n\n${err.message || 'Unable to complete request.'}\n\nPlease check your API key in **Settings**.`,
+          content: `**Could not reach Groq Cloud AI**\n\n${err.message || 'Unable to complete request.'}\n\nPlease check your API key in **Settings**.`,
         },
       ]);
     } finally {
@@ -184,115 +160,79 @@ How can I support your public health decision-making today?`,
     }]);
   };
 
+  const modelLabel = getGroqModel().includes('/') ? getGroqModel().split('/')[1] : getGroqModel();
+
   return (
-    <div className="ai-drawer-overlay" onClick={onClose}>
-      <aside className="ai-drawer" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <header className="ai-drawer-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div className="brand-crest" style={{ width: '32px', height: '32px', fontSize: '0.75rem' }}>
-              AI
-            </div>
-            <div>
-              <span className="eyebrow" style={{ color: '#94a3b8', fontSize: '0.65rem' }}>IDSR Surveillance Intelligence</span>
-              <h3>Clinical Decision Support</h3>
-            </div>
+    <div className="overlay" onClick={onClose}>
+      <aside className="drawer" onClick={(e) => e.stopPropagation()} aria-label="AI copilot">
+        <header className="drawer-head">
+          <div>
+            <p className="eyebrow">Decision support · {activeTab}</p>
+            <h2>Health copilot</h2>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={clearChat}
-              title="Clear chat"
-              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid #334155', color: '#cbd5e1', cursor: 'pointer', borderRadius: '4px', padding: '5px 8px', fontSize: '0.74rem' }}
-            >
+          <div className="drawer-tools">
+            <button type="button" className="btn btn-sm btn-quiet" onClick={clearChat}>
               Clear
             </button>
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid #334155', color: '#cbd5e1', cursor: 'pointer', borderRadius: '4px', padding: '5px 8px', fontSize: '0.74rem' }}
-            >
-              Model Config
+            <button type="button" className="icon-btn" onClick={onOpenSettings} aria-label="AI settings" title="AI settings">
+              <Icon name="settings" />
             </button>
-            <button type="button" className="ai-drawer-close" onClick={onClose} aria-label="Close">×</button>
+            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close copilot">
+              <Icon name="close" />
+            </button>
           </div>
         </header>
 
-        {/* Context bar */}
-        <div className="ai-context-indicator">
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontWeight: 600 }}>Active View:</span>
-            <strong>{activeTab}</strong>
-            <span style={{ color: '#94a3b8' }}>• Kisumu County IDSR</span>
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span className="status-badge-dot" style={{ background: '#10b981' }} />
-            <small style={{ color: '#0f766e', fontWeight: 700, fontSize: '0.72rem' }}>
-              {getGroqModel().includes('/') ? getGroqModel().split('/')[1] : getGroqModel()}
-            </small>
-          </span>
-        </div>
+        <p className="drawer-context">
+          <span className="dot dot-ok" aria-hidden="true" />
+          <span className="mono">{modelLabel}</span>
+          <span>Aggregated data only. Verify before acting.</span>
+        </p>
 
-        {/* Chat body */}
-        <div className="ai-chat-body">
+        <div className="chat">
           {messages.map((msg, index) => (
-            <div key={index} className={`ai-message ${msg.role}`}>
-              <div className="ai-message-header">
-                <span className="status-badge-dot" style={{ background: msg.role === 'assistant' ? '#0d9488' : '#64748b' }} />
-                <span className="ai-message-sender">
-                  {msg.role === 'assistant' ? 'Clinical Decision Support' : 'Epidemiologist / Officer'}
-                </span>
-              </div>
-              <div className="ai-message-bubble">
-                {msg.role === 'assistant' ? (
-                  <MarkdownMessage content={msg.content} />
-                ) : (
-                  <span>{msg.content}</span>
-                )}
+            <div key={index} className={`msg msg-${msg.role}`}>
+              <p className="msg-from">{msg.role === 'assistant' ? 'Copilot' : 'You'}</p>
+              <div className="msg-body">
+                {msg.role === 'assistant' ? <MarkdownMessage content={msg.content} /> : msg.content}
               </div>
             </div>
           ))}
 
           {isLoading && (
-            <div className="ai-message assistant">
-              <div className="ai-message-header">
-                <span className="status-badge-dot" style={{ background: '#0d9488' }} />
-                <span className="ai-message-sender">Clinical Decision Support</span>
-              </div>
-              <div className="ai-message-bubble ai-thinking-bubble">
-                <span style={{ color: '#475569', fontSize: '0.82rem' }}>
-                  Querying Groq Cloud inference engine...
+            <div className="msg msg-assistant">
+              <p className="msg-from">Copilot</p>
+              <div className="msg-body msg-thinking">
+                <span className="typing" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
                 </span>
+                Working on it…
               </div>
             </div>
           )}
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Quick prompts */}
-        <div className="quick-prompts-container">
-          <span className="quick-prompts-label">RECOMMENDED CLINICAL QUERIES — {activeTab.toUpperCase()}</span>
-          <div className="quick-prompts-scroll">
-            {currentQuestions.map((q) => (
-              <button
-                key={q}
-                type="button"
-                className="quick-prompt-chip"
-                onClick={() => handleSend(q)}
-                disabled={isLoading}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
+        <div className="prompts">
+          <p className="eyebrow">Suggested for {activeTab}</p>
+          {currentQuestions.map((q) => (
+            <button key={q} type="button" className="prompt" onClick={() => handleSend(q)} disabled={isLoading}>
+              {q}
+            </button>
+          ))}
         </div>
 
-        {/* Input */}
-        <footer className="ai-chat-footer">
+        <footer className="composer">
+          <label className="sr-only" htmlFor="copilot-input">
+            Message the copilot
+          </label>
           <textarea
+            id="copilot-input"
             ref={inputRef}
-            className="ai-chat-input"
-            placeholder={`Ask about ${activeTab} data... (Enter to send, Shift+Enter for new line)`}
+            className="input"
+            placeholder={`Ask about ${activeTab}. Enter to send, Shift+Enter for a new line.`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -301,18 +241,12 @@ How can I support your public health decision-making today?`,
           />
           <button
             type="button"
-            className="ai-send-btn"
+            className="btn btn-primary"
             onClick={() => handleSend()}
             disabled={!input.trim() || isLoading}
-            title="Send message"
           >
-            {isLoading ? (
-              <div className="typing-dots" style={{ display: 'flex', gap: '3px', padding: '0 4px' }}>
-                <span style={{ width: '5px', height: '5px', background: '#fff', borderRadius: '50%', animation: 'typingDot 1.2s infinite 0s' }} />
-                <span style={{ width: '5px', height: '5px', background: '#fff', borderRadius: '50%', animation: 'typingDot 1.2s infinite 0.2s' }} />
-                <span style={{ width: '5px', height: '5px', background: '#fff', borderRadius: '50%', animation: 'typingDot 1.2s infinite 0.4s' }} />
-              </div>
-            ) : 'Send'}
+            <Icon name="send" size={16} />
+            Send
           </button>
         </footer>
       </aside>
