@@ -7,7 +7,7 @@ import {
   type PilotIndicator,
 } from '../services/pilotMEData'
 import { Sparkline } from '../components/charts'
-import { Facts, Notice, Panel, Pill } from '../components/ui'
+import { Facts, Panel, Pill } from '../components/ui'
 import { toneOf } from '../utils/tone'
 
 const TREND_META: Record<keyof typeof pilotTrendData, { label: string; unit: string; lowerIsBetter?: boolean }> = {
@@ -73,11 +73,6 @@ export function PilotMEPage() {
 
   return (
     <>
-      <Notice>
-        Pilot indicators cover 7 sub-counties and 261 facilities for {pilotMESummary.reportingPeriod}. The baseline is
-        the pre-pilot period, weeks 1–34 of 2026.
-      </Notice>
-
       <section className="indicator-grid" aria-label="Pilot indicators">
         {pilotIndicators.map((indicator) => (
           <IndicatorCard key={indicator.id} indicator={indicator} />

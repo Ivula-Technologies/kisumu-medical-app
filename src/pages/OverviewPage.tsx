@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { overviewData, type CountyAlert } from '../services/overviewData'
+import { diseaseTrendSummary } from '../services/diseaseSignalsData'
+import { AreaChart } from '../components/charts'
 import { AnimatedCounter } from '../components/RealtimeWidgets'
-import { Dot, Facts, KpiStrip, Notice, Panel, Pill } from '../components/ui'
+import { Dot, Facts, KpiStrip, Panel, Pill } from '../components/ui'
 import { toneOf } from '../utils/tone'
 
 /* Sub-counties placed roughly where they sit around the Winam Gulf:
@@ -38,14 +40,19 @@ function CountyTile({ county, onOpen }: { county: CountyAlert; onOpen: () => voi
 
 export function OverviewPage({ onOpenSignals }: { onOpenSignals: () => void }) {
   const [showAll, setShowAll] = useState(false)
+  const [disease, setDisease] = useState('All')
+  const weeks = diseaseTrendSummary[0].weeklyCounts.map((_, i) => `W${35 + i}`)
+  const trend =
+    disease === 'All'
+      ? weeks.map((_, i) => diseaseTrendSummary.reduce((sum, d) => sum + d.weeklyCounts[i], 0))
+      : (diseaseTrendSummary.find((d) => d.disease === disease) ?? diseaseTrendSummary[0]).weeklyCounts
+  const trendChange = Math.round(((trend[trend.length - 1] - trend[0]) / trend[0]) * 100)
   const { metrics, subCounties, latestAlerts, facilitySnapshot } = overviewData
   const alerts = showAll ? latestAlerts : latestAlerts.slice(0, 4)
   const reportingPct = (metrics.reportingThisWeek / metrics.totalFacilities) * 100
 
   return (
     <>
-      <Notice>AI-generated signals support epidemiological verification. They do not replace it.</Notice>
-
       <KpiStrip
         label="Overview metrics"
         items={[
@@ -92,32 +99,34 @@ export function OverviewPage({ onOpenSignals }: { onOpenSignals: () => void }) {
 
       <div className="grid grid-main">
         <Panel
-          eyebrow="Sub-county risk"
-          title="Alert intensity by area"
-          aside={<span className="tag">{subCounties.length} sub-counties</span>}
-          footer={
-            <div className="legend">
-              {(['low', 'moderate', 'high', 'critical'] as const).map((level) => (
-                <span key={level} className="legend-item">
-                  <span className={`legend-swatch tone-${toneOf(level)}`} />
-                  {level[0].toUpperCase() + level.slice(1)}
-                </span>
-              ))}
-              <span className="legend-note">
-                Risk index 0–100 from weekly IDSR thresholds. Trend vs prior month. Schematic layout, not to scale.
-              </span>
-            </div>
+          eyebrow="Reported cases"
+          title="Priority diseases, last 8 weeks"
+          aside={
+            <label>
+              <span className="sr-only">Disease</span>
+              <select id="overview-disease" className="input input-sm" value={disease} onChange={(e) => setDisease(e.target.value)}>
+                <option value="All">All five diseases</option>
+                {diseaseTrendSummary.map((d) => (
+                  <option key={d.disease} value={d.disease}>
+                    {d.disease}
+                  </option>
+                ))}
+              </select>
+            </label>
           }
         >
-          <div className="county-map" aria-label="Schematic map of Kisumu sub-counties">
-            {subCounties.map((county) => (
-              <CountyTile key={county.name} county={county} onOpen={onOpenSignals} />
-            ))}
-            <div className="map-lake" aria-hidden="true">
-              <span>Lake Victoria</span>
-              <small>Winam Gulf</small>
-            </div>
-          </div>
+          <p className="chart-headline">
+            <span className="num">{trend[trend.length - 1].toLocaleString()}</span> cases in week 42
+            <span className={trendChange > 0 ? 'delta bad' : 'delta good'}>
+              {trendChange > 0 ? '+' : '−'}
+              {Math.abs(trendChange)}% since week 35
+            </span>
+          </p>
+          <AreaChart
+            values={trend}
+            labels={weeks}
+            label={`Weekly reported cases, ${disease === 'All' ? 'all five priority diseases' : disease}, weeks 35 to 42`}
+          />
         </Panel>
 
         <Panel
@@ -155,26 +164,57 @@ export function OverviewPage({ onOpenSignals }: { onOpenSignals: () => void }) {
         </Panel>
       </div>
 
-      <div className="grid grid-2">
-        <Panel eyebrow="Synthetic dataset" title="Demo coverage">
-          <Facts
-            items={[
-              { label: 'Total facilities', value: facilitySnapshot.totalFacilities.toLocaleString() },
-              { label: 'Government-owned', value: facilitySnapshot.governmentOwned.toLocaleString() },
-              { label: 'Community units', value: facilitySnapshot.communityUnits.toLocaleString() },
-              { label: 'Health promoters', value: facilitySnapshot.chps.toLocaleString() },
-              { label: 'Households served', value: facilitySnapshot.households.toLocaleString() },
-            ]}
-          />
+      <div className="grid grid-main">
+        <Panel
+          eyebrow="Sub-county risk"
+          title="Alert intensity by area"
+          aside={<span className="tag">{subCounties.length} sub-counties</span>}
+          footer={
+            <div className="legend">
+              {(['low', 'moderate', 'high', 'critical'] as const).map((level) => (
+                <span key={level} className="legend-item">
+                  <span className={`legend-swatch tone-${toneOf(level)}`} />
+                  {level[0].toUpperCase() + level.slice(1)}
+                </span>
+              ))}
+              <span className="legend-note">
+                Risk index 0–100 from weekly IDSR thresholds. Trend vs prior month. Schematic layout, not to scale.
+              </span>
+            </div>
+          }
+        >
+          <div className="county-map" aria-label="Schematic map of Kisumu sub-counties">
+            {subCounties.map((county) => (
+              <CountyTile key={county.name} county={county} onOpen={onOpenSignals} />
+            ))}
+            <div className="map-lake" aria-hidden="true">
+              <span>Lake Victoria</span>
+              <small>Winam Gulf</small>
+            </div>
+          </div>
         </Panel>
 
-        <Panel eyebrow="Data governance" title="AI labels and controls">
-          <ul className="checklist">
-            <li>Routine facility and community data remain in eCHIS, KenyaEMR and KHIS.</li>
-            <li>AI outputs are labelled, logged and require human confirmation before action.</li>
-            <li>Only aggregated, non-patient-level data are used in the demo.</li>
-          </ul>
-        </Panel>
+        <div className="stack">
+          <Panel eyebrow="Synthetic dataset" title="Demo coverage">
+            <Facts
+              items={[
+                { label: 'Total facilities', value: facilitySnapshot.totalFacilities.toLocaleString() },
+                { label: 'Government-owned', value: facilitySnapshot.governmentOwned.toLocaleString() },
+                { label: 'Community units', value: facilitySnapshot.communityUnits.toLocaleString() },
+                { label: 'Health promoters', value: facilitySnapshot.chps.toLocaleString() },
+                { label: 'Households served', value: facilitySnapshot.households.toLocaleString() },
+              ]}
+            />
+          </Panel>
+
+          <Panel eyebrow="Data governance" title="AI labels and controls">
+            <ul className="checklist">
+              <li>Routine facility and community data remain in eCHIS, KenyaEMR and KHIS.</li>
+              <li>AI outputs are labelled, logged and require human confirmation before action.</li>
+              <li>Only aggregated, non-patient-level data are used in the demo.</li>
+            </ul>
+          </Panel>
+        </div>
       </div>
     </>
   )

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { diseaseTrendSummary, type DiseaseSignal } from '../services/diseaseSignalsData'
 import { generateLiveDiseaseAnalysis } from '../services/groqService'
 import { SignalChart } from '../components/charts'
-import { AiOutput, Dot, Facts, Icon, Notice, Panel, Pill } from '../components/ui'
+import { AiOutput, Dot, Facts, Icon, Panel, Pill } from '../components/ui'
 import { toneOf } from '../utils/tone'
 
 const STATUSES: DiseaseSignal['status'][] = ['Unverified', 'Under investigation', 'Confirmed', 'Dismissed']
@@ -63,11 +63,6 @@ export function DiseaseSignalsPage({ signals, onStatusChange, onAddNote, onAskCo
 
   return (
     <>
-      <Notice>
-        Signals come from a rolling baseline with a z-score threshold of 2.0, across 261 facilities. Each one needs
-        verification by a surveillance officer before any response.
-      </Notice>
-
       <div className="grid grid-master">
         <Panel
           eyebrow={signal.currentWeek}

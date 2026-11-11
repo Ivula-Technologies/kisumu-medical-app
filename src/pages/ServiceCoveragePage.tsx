@@ -9,7 +9,7 @@ import {
 } from '../services/serviceCoverageData'
 import { generateCoverageGapBrief } from '../services/groqService'
 import { Sparkline } from '../components/charts'
-import { AiOutput, Dot, Icon, KpiStrip, Notice, Panel, Pill } from '../components/ui'
+import { AiOutput, Dot, Icon, KpiStrip, Panel, Pill } from '../components/ui'
 import type { Tone } from '../utils/tone'
 
 const STATUSES: GapStatus[] = ['Unreviewed', 'Outreach planned', 'Resolved']
@@ -44,6 +44,7 @@ export function ServiceCoveragePage({ gaps, onStatusChange, onAskCopilot }: Prop
   const [briefs, setBriefs] = useState<Record<string, string>>({})
   const [analyzing, setAnalyzing] = useState('')
   const [error, setError] = useState('')
+  const [openGap, setOpenGap] = useState(gaps[0]?.id ?? '')
 
   const openGaps = gaps.filter((g) => g.status !== 'Resolved')
   const householdsAffected = openGaps.reduce((sum, g) => sum + g.households, 0)
@@ -74,11 +75,6 @@ export function ServiceCoveragePage({ gaps, onStatusChange, onAskCopilot }: Prop
 
   return (
     <>
-      <Notice>
-        Coverage gaps are flagged from aggregated eCHIS and KHIS data for {coverageSummary.period}. County teams decide
-        where outreach goes. No household or patient is identified.
-      </Notice>
-
       <KpiStrip
         label="County service coverage"
         items={[
@@ -216,19 +212,24 @@ export function ServiceCoveragePage({ gaps, onStatusChange, onAskCopilot }: Prop
             const indicator = indicatorById[gap.indicator]
             const change = gap.recent[gap.recent.length - 1] - gap.recent[0]
             return (
-              <li key={gap.id} className="gap">
-                <div className="gap-head">
+              <li key={gap.id} className={openGap === gap.id ? 'gap open' : 'gap'}>
+                <button
+                  type="button"
+                  className="gap-head"
+                  aria-expanded={openGap === gap.id}
+                  onClick={() => setOpenGap(openGap === gap.id ? '' : gap.id)}
+                >
                   <Dot tone={gapTone(gap.coverage, indicator.target)} />
-                  <div className="row-main">
-                    <p className="row-title">
+                  <span className="row-main">
+                    <span className="row-title">
                       {indicator.name} · {gap.area}
-                    </p>
-                    <p className="row-meta">
+                    </span>
+                    <span className="row-meta">
                       <span className="mono">{gap.id}</span> · {gap.subCounty} · {gap.communityUnits} community units ·{' '}
                       {gap.households.toLocaleString()} households
-                    </p>
-                  </div>
-                  <div className="gap-figures">
+                    </span>
+                  </span>
+                  <span className="gap-figures">
                     <span className="row-figure num">
                       {gap.coverage}% <span className="muted">of {indicator.target}%</span>
                     </span>
@@ -236,9 +237,13 @@ export function ServiceCoveragePage({ gaps, onStatusChange, onAskCopilot }: Prop
                       {change < 0 ? '−' : '+'}
                       {Math.abs(change)} pts in 3 months
                     </span>
-                  </div>
-                </div>
+                  </span>
+                  <Pill>{gap.status}</Pill>
+                  <Icon name="chevron" size={16} />
+                </button>
 
+                {openGap === gap.id ? (
+                  <>
                 <div className="gap-body">
                   <div>
                     <p className="field-label">Why flagged</p>
@@ -251,7 +256,6 @@ export function ServiceCoveragePage({ gaps, onStatusChange, onAskCopilot }: Prop
                 </div>
 
                 <div className="gap-foot">
-                  <Pill>{gap.status}</Pill>
                   <label className="sr-only" htmlFor={`gap-status-${gap.id}`}>
                     Review state for {gap.id}
                   </label>
@@ -282,6 +286,8 @@ export function ServiceCoveragePage({ gaps, onStatusChange, onAskCopilot }: Prop
                   <AiOutput title={`Outreach brief — ${gap.id}`} requirement="Requires sub-county team approval">
                     {briefs[gap.id]}
                   </AiOutput>
+                ) : null}
+                  </>
                 ) : null}
               </li>
             )

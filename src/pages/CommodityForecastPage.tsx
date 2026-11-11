@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { commodityForecasts, commoditySummary, subCountyStock } from '../services/commodityForecastData'
 import { generateSupplyOptimization } from '../services/groqService'
-import { AiOutput, Facts, Icon, KpiStrip, Notice, Panel, Pill } from '../components/ui'
+import { AiOutput, Facts, Icon, KpiStrip, Panel, Pill } from '../components/ui'
 import { toneOf, type Tone } from '../utils/tone'
 
 export type ApprovalStatus = 'Pending' | 'Approved' | 'Escalated'
@@ -43,11 +43,6 @@ export function CommodityForecastPage({ approvals, onApprovalChange, onAskCopilo
 
   return (
     <>
-      <Notice>
-        Forecasts support supply chain review. Redistribution suggestions take effect only after a pharmacist approves
-        them.
-      </Notice>
-
       <KpiStrip
         label="Months of stock by commodity"
         items={commodityForecasts.map((item) => ({
