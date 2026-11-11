@@ -25,14 +25,42 @@ import { GovernancePage } from './pages/GovernancePage'
 const TABS = ['Overview', 'Disease Signals', 'Commodity Forecast', 'Service Coverage', 'Data Quality', 'Pilot M&E', 'Data & Governance'] as const
 type Tab = (typeof TABS)[number]
 
-const TAB_META: Record<Tab, { icon: IconName; eyebrow: string }> = {
-  Overview: { icon: 'overview', eyebrow: 'County operations' },
-  'Disease Signals': { icon: 'signals', eyebrow: 'IDSR signal detection' },
-  'Commodity Forecast': { icon: 'commodity', eyebrow: 'Essential medicines supply' },
-  'Service Coverage': { icon: 'coverage', eyebrow: 'Community and facility service gaps' },
-  'Data Quality': { icon: 'quality', eyebrow: 'Reporting and validation' },
-  'Pilot M&E': { icon: 'pilot', eyebrow: 'Monitoring and evaluation' },
-  'Data & Governance': { icon: 'governance', eyebrow: 'Data protection and access' },
+const TAB_META: Record<Tab, { icon: IconName; group: string; lede: string }> = {
+  Overview: {
+    icon: 'overview',
+    group: 'Surveillance',
+    lede: 'This week across 261 facilities and 7 sub-counties. AI-generated signals support epidemiological verification; they do not replace it.',
+  },
+  'Disease Signals': {
+    icon: 'signals',
+    group: 'Surveillance',
+    lede: 'Unusual weekly case counts, flagged from a rolling baseline. Each signal needs verification by a surveillance officer before any response.',
+  },
+  'Commodity Forecast': {
+    icon: 'commodity',
+    group: 'Surveillance',
+    lede: 'Three-month demand and stockout risk for essential medicines. Redistribution takes effect only after a pharmacist approves it.',
+  },
+  'Service Coverage': {
+    icon: 'coverage',
+    group: 'Surveillance',
+    lede: 'Where community and facility services fall short of target, from aggregated eCHIS and KHIS data. County teams decide where outreach goes.',
+  },
+  'Data Quality': {
+    icon: 'quality',
+    group: 'Assurance',
+    lede: 'Completeness, timeliness and validation of eCHIS, KenyaEMR and KHIS submissions. Facilities with failures are flagged for follow-up.',
+  },
+  'Pilot M&E': {
+    icon: 'pilot',
+    group: 'Assurance',
+    lede: 'Pilot indicators for weeks 35–42 of 2026, against a baseline from the pre-pilot period, weeks 1–34.',
+  },
+  'Data & Governance': {
+    icon: 'governance',
+    group: 'Assurance',
+    lede: "Access, provenance and controls shaped by Kenya's Data Protection Act (2019) and Digital Health Act (2023).",
+  },
 }
 
 const NAV_GROUPS: Array<{ label: string; tabs: Tab[] }> = [
@@ -361,19 +389,17 @@ function App() {
             <Icon name={isNavOpen ? 'close' : 'menu'} />
           </button>
 
-          <div className="topbar-title">
-            <p className="eyebrow">{meta.eyebrow} · Epi week 42</p>
-            <h1>{activeTab}</h1>
-          </div>
+          <p className="crumbs">
+            <span>{meta.group}</span>
+            <span aria-hidden="true">/</span>
+            <strong>{activeTab}</strong>
+          </p>
 
           <div className="topbar-actions">
-            <div className="sync-meta" aria-live="polite">
-              <span className="sync-line">
-                <span className={isSyncing ? 'dot dot-info pulse' : 'dot dot-ok'} aria-hidden="true" />
-                {isSyncing ? 'Syncing sources…' : `Synced ${lastSync}`}
-              </span>
-              <RealTimeClock />
-            </div>
+            <span className="sync-chip" aria-live="polite" title="Last sync of eCHIS, KenyaEMR and KHIS">
+              <span className={isSyncing ? 'dot dot-info pulse' : 'dot dot-ok'} aria-hidden="true" />
+              {isSyncing ? 'Syncing…' : `Synced ${lastSync.slice(11)}`}
+            </span>
             <button type="button" className="btn" onClick={syncNow} disabled={isSyncing} title="Sync eCHIS, KenyaEMR and KHIS">
               <Icon name="sync" size={16} />
               <span className="btn-label">Sync</span>
@@ -398,7 +424,18 @@ function App() {
           </div>
         </header>
 
-        <main className="page">
+        <main className="page" key={activeTab}>
+          <header className="page-head">
+            <div>
+              <h1>{activeTab}</h1>
+              <p className="page-lede">{meta.lede}</p>
+            </div>
+            <div className="page-tags">
+              <span className="tag">Epi week 42</span>
+              <RealTimeClock />
+            </div>
+          </header>
+
           {activeTab === 'Overview' ? (
             <OverviewPage onOpenSignals={() => goTo('Disease Signals')} />
           ) : activeTab === 'Disease Signals' ? (

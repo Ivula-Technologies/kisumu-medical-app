@@ -1,73 +1,75 @@
 /* Design tokens — Kisumu Health Intelligence
-   Calm, institutional: ink navy chrome, deep teal for action, cool paper workspace.
-   Semantic colours (critical / high / moderate / ok / info) are separate from the brand. */
+   Light, roomy product UI: soft neutral canvas, white cards with gentle
+   shadows, one vivid teal accent. Semantic colours stay separate from the accent. */
 :root {
   /* Surfaces */
-  --bg: #f1f4f3;
+  --bg: #f6f7f9;
   --surface: #ffffff;
-  --surface-2: #f6f8f7;
-  --surface-3: #ebf0ef;
+  --surface-2: #f8f9fb;
+  --surface-3: #eff1f4;
 
   /* Ink */
-  --ink: #10242c;
-  --ink-2: #41565e;
-  --ink-3: #6b7f86;
-  --ink-inverse: #eef4f3;
+  --ink: #101828;
+  --ink-2: #475467;
+  --ink-3: #7a8699;
 
   /* Lines */
-  --line: #dde5e3;
-  --line-strong: #c3cfcd;
+  --line: #e7eaee;
+  --line-strong: #d2d7de;
 
-  /* Brand */
-  --brand: #0a5f69;
-  --brand-strong: #074850;
-  --brand-soft: #e2f0ef;
-  --brand-line: #b5d6d4;
+  /* Accent */
+  --brand: #0a7c6e;
+  --brand-strong: #07645a;
+  --brand-bright: #12a594;
+  --brand-soft: #e7f6f3;
+  --brand-line: #bfe6df;
 
-  /* Chrome (sidebar, landing header) */
-  --chrome: #0d2029;
-  --chrome-2: #152c37;
-  --chrome-line: #24404c;
-  --chrome-ink: #dbe6e6;
-  --chrome-ink-2: #8fa5ab;
-  --chrome-accent: #5fc7c0;
-
-  /* Semantic */
+  /* Semantic: text / soft fill / line / solid mark */
   --critical: #b42318;
-  --critical-soft: #fdecea;
-  --critical-line: #f3c2bc;
-  --high: #b9520b;
-  --high-soft: #fdf0e3;
-  --high-line: #f1cfa9;
-  --moderate: #8a6100;
-  --moderate-soft: #fbf4d8;
-  --moderate-line: #e8d590;
-  --ok: #1c7548;
-  --ok-soft: #e5f4eb;
-  --ok-line: #b4dcc4;
-  --info: #2a5b9f;
-  --info-soft: #e8f0fa;
-  --info-line: #bdd1ec;
+  --critical-soft: #fef3f2;
+  --critical-line: #fecdc9;
+  --critical-mark: #e5484d;
+  --high: #b54708;
+  --high-soft: #fff6ed;
+  --high-line: #fedfc0;
+  --high-mark: #f08c2e;
+  --moderate: #8f6200;
+  --moderate-soft: #fffaeb;
+  --moderate-line: #f8e3a3;
+  --moderate-mark: #e5b324;
+  --ok: #067647;
+  --ok-soft: #edfcf3;
+  --ok-line: #bdeed3;
+  --ok-mark: #22b573;
+  --info: #1d5bbf;
+  --info-soft: #eff5ff;
+  --info-line: #c9dcfb;
+  --info-mark: #4c8df6;
 
   /* Type */
-  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-  --text-xs: 0.6875rem;
+  --text-xs: 0.75rem;
   --text-sm: 0.8125rem;
   --text-md: 0.875rem;
   --text-lg: 1rem;
   --text-xl: 1.25rem;
-  --text-2xl: 1.625rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2rem;
 
-  /* Shape */
-  --radius-sm: 4px;
-  --radius: 6px;
-  --radius-lg: 10px;
-  --shadow-pop: 0 12px 32px rgba(13, 32, 41, 0.16), 0 2px 6px rgba(13, 32, 41, 0.08);
+  /* Shape and depth */
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 18px;
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 2px 8px rgba(16, 24, 40, 0.04);
+  --shadow-lift: 0 2px 4px rgba(16, 24, 40, 0.05), 0 10px 24px rgba(16, 24, 40, 0.08);
+  --shadow-pop: 0 8px 16px rgba(16, 24, 40, 0.08), 0 24px 56px rgba(16, 24, 40, 0.18);
 
-  --sidebar-w: 248px;
+  --sidebar-w: 264px;
   --topbar-h: 60px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
   font-family: var(--font-sans);
   font-size: 16px;
@@ -127,6 +129,7 @@ h3,
 h4 {
   font-weight: 600;
   line-height: 1.25;
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
 
@@ -157,14 +160,18 @@ a {
 }
 
 :focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--brand-bright);
   outline-offset: 2px;
 }
 
-.mono,
 .num {
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  font-size: 0.94em;
 }
 
 .sr-only {

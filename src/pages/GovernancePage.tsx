@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   accessLog,
   dataGovernanceSummary,
@@ -6,19 +7,16 @@ import {
   rolePermissions,
 } from '../services/dataGovernanceData'
 import { AnimatedCounter } from '../components/RealtimeWidgets'
-import { KpiStrip, Notice, Panel, Pill } from '../components/ui'
+import { KpiStrip, Panel, Pill } from '../components/ui'
 
 export function GovernancePage({ lastSync }: { lastSync: string }) {
   const summary = dataGovernanceSummary
+  const [showAllLog, setShowAllLog] = useState(false)
+  const logRows = showAllLog ? accessLog : accessLog.slice(0, 5)
   const totalUsers = rolePermissions.reduce((sum, r) => sum + r.userCount, 0)
 
   return (
     <>
-      <Notice>
-        The governance framework is shaped by Kenya's Data Protection Act (2019) and Digital Health Act (2023). AI
-        outputs are labelled, logged and need human confirmation.
-      </Notice>
-
       <KpiStrip
         label="Governance overview"
         items={[
@@ -101,9 +99,13 @@ export function GovernancePage({ lastSync }: { lastSync: string }) {
 
           <Panel
             eyebrow="Access log"
-            title={`Last ${accessLog.length} access events`}
+            title="Recent access events"
             flush
-            aside={<span className="tag">All successful</span>}
+            aside={
+              <button type="button" className="btn btn-quiet btn-sm" onClick={() => setShowAllLog((v) => !v)}>
+                {showAllLog ? 'Show fewer' : `Show all ${accessLog.length}`}
+              </button>
+            }
           >
             <div className="table-wrap">
               <table className="table">
@@ -117,7 +119,7 @@ export function GovernancePage({ lastSync }: { lastSync: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {accessLog.map((log) => (
+                  {logRows.map((log) => (
                     <tr key={`${log.timestamp}-${log.user}`}>
                       <td className="num nowrap">{log.timestamp}</td>
                       <th scope="row">

@@ -109,16 +109,16 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
             </span>
             <div>
               <p className="brand-sub">Republic of Kenya · County Government of Kisumu</p>
-              <p className="brand-name">Department of Health · Health Intelligence</p>
+              <p className="brand-name">Kisumu Health Intelligence</p>
             </div>
           </div>
           <div className="l-header-actions">
             <RealTimeClock />
-            <button type="button" className="btn btn-on-dark" onClick={onOpenCopilot}>
+            <button type="button" className="btn" onClick={onOpenCopilot}>
               <Icon name="assistant" size={16} />
               <span className="btn-label">Ask copilot</span>
             </button>
-            <button type="button" className="btn btn-accent" onClick={() => onEnterDashboard('Overview')}>
+            <button type="button" className="btn btn-primary" onClick={() => onEnterDashboard('Overview')}>
               Open dashboard
               <Icon name="arrow" size={16} />
             </button>
@@ -137,11 +137,11 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
               on it.
             </p>
             <div className="actions">
-              <button type="button" className="btn btn-accent btn-lg" onClick={() => onEnterDashboard('Overview')}>
+              <button type="button" className="btn btn-primary btn-lg" onClick={() => onEnterDashboard('Overview')}>
                 Open operations dashboard
                 <Icon name="arrow" size={16} />
               </button>
-              <button type="button" className="btn btn-on-dark btn-lg" onClick={() => onEnterDashboard('Disease Signals')}>
+              <button type="button" className="btn btn-lg" onClick={() => onEnterDashboard('Disease Signals')}>
                 View disease signals
               </button>
             </div>
@@ -156,7 +156,7 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
               <div className="l-feed-tools">
                 <button
                   type="button"
-                  className="icon-btn on-dark"
+                  className="icon-btn"
                   onClick={() => setIsLiveStreaming(!isLiveStreaming)}
                   aria-label={isLiveStreaming ? 'Pause feed' : 'Resume feed'}
                   title={isLiveStreaming ? 'Pause feed' : 'Resume feed'}
@@ -165,7 +165,7 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
                 </button>
                 <button
                   type="button"
-                  className="icon-btn on-dark"
+                  className="icon-btn"
                   onClick={() => emitSimulatedLiveEvent()}
                   aria-label="Simulate an event"
                   title="Simulate an event"

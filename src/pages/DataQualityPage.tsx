@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   dataQualityIssues,
   dataQualitySummary,
@@ -6,7 +7,7 @@ import {
   sourceQuality,
 } from '../services/dataQualityData'
 import { AnimatedCounter } from '../components/RealtimeWidgets'
-import { Dot, KpiStrip, Meter, Notice, Panel, Pill } from '../components/ui'
+import { Dot, KpiStrip, Meter, Panel, Pill } from '../components/ui'
 import { toneOf, type Tone } from '../utils/tone'
 
 function errorTone(count: number): Tone {
@@ -26,14 +27,11 @@ function PercentCell({ value, target }: { value: number; target: number }) {
 
 export function DataQualityPage({ lastSync }: { lastSync: string }) {
   const summary = dataQualitySummary
+  const [showAllFacilities, setShowAllFacilities] = useState(false)
+  const facilities = showAllFacilities ? facilityReporting : facilityReporting.slice(0, 8)
 
   return (
     <>
-      <Notice>
-        Quality metrics are computed from eCHIS, KenyaEMR and KHIS submissions. Facilities with validation failures are
-        flagged for follow-up.
-      </Notice>
-
       <KpiStrip
         label="Data quality overview"
         items={[
@@ -191,7 +189,11 @@ export function DataQualityPage({ lastSync }: { lastSync: string }) {
         eyebrow="Facility reporting detail"
         title="Completeness and timeliness by facility"
         flush
-        aside={<span className="tag">{facilityReporting.length} facilities shown</span>}
+        aside={
+          <button type="button" className="btn btn-quiet btn-sm" onClick={() => setShowAllFacilities((v) => !v)}>
+            {showAllFacilities ? 'Show fewer' : `Show all ${facilityReporting.length}`}
+          </button>
+        }
       >
         <div className="table-wrap">
           <table className="table">
@@ -207,7 +209,7 @@ export function DataQualityPage({ lastSync }: { lastSync: string }) {
               </tr>
             </thead>
             <tbody>
-              {facilityReporting.map((fac) => (
+              {facilities.map((fac) => (
                 <tr key={fac.facility}>
                   <th scope="row">
                     {fac.facility}
