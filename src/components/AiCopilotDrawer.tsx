@@ -89,7 +89,7 @@ export const AiCopilotDrawer: React.FC<AiCopilotDrawerProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: `**Jambo.** I help health workers in the Kisumu mental health referral and linkage pilot.
+      content: `**Jambo.** I help health workers in the Kisumu mental health referral and linkage pilot, powered by Ivula Technologies.
 
 I can help you:
 

@@ -45,6 +45,9 @@ export function LandingPage({ referrals, now, onEnterDashboard, onOpenCopilot }:
             </div>
           </div>
           <div className="l-header-actions">
+            <span className="powered powered-header">
+              Powered by <strong>Ivula</strong>
+            </span>
             <RealTimeClock />
             <button type="button" className="btn" onClick={onOpenCopilot}>
               <Icon name="assistant" size={16} />
@@ -207,6 +210,9 @@ export function LandingPage({ referrals, now, onEnterDashboard, onOpenCopilot }:
               A pilot of the Adventist Community Development Organization, West Kenya, with the Kisumu County Department of
               Health. It builds on eCHIS, KenyaEMR and KHIS. It does not diagnose: health workers decide.
             </p>
+            <p className="powered powered-lg">
+              Powered by <strong>Ivula Technologies</strong>
+            </p>
           </div>
 
           <nav aria-label="Dashboard sections">
@@ -235,7 +241,7 @@ export function LandingPage({ referrals, now, onEnterDashboard, onOpenCopilot }:
           </div>
         </div>
         <div className="l-wrap l-footer-base">
-          <p>© {now.getFullYear()} County Government of Kisumu and ACDO West Kenya.</p>
+          <p>© {now.getFullYear()} County Government of Kisumu and ACDO West Kenya. Powered by Ivula Technologies.</p>
           <p>Synthetic demo data. No real person is shown.</p>
         </div>
       </footer>

@@ -303,6 +303,9 @@ function App() {
           <div>
             <p className="brand-name">Kisumu Mental Health Linkage</p>
             <p className="brand-sub">County Department of Health · ACDO</p>
+            <p className="brand-powered">
+              Powered by <strong>Ivula Technologies</strong>
+            </p>
           </div>
         </div>
 
@@ -481,7 +484,7 @@ function App() {
             <GovernancePage />
           )}
 
-          <p className="page-foot">Synthetic demo data. Every person is fictional and identified only by a pseudonymous ID. Facility details are illustrative.</p>
+          <p className="page-foot">Powered by Ivula Technologies. Synthetic demo data: every person is fictional and identified only by a pseudonymous ID. Facility details are illustrative.</p>
         </main>
       </div>
 
