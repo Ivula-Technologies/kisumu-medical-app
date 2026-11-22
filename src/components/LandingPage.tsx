@@ -1,103 +1,35 @@
-import { useState, useEffect } from 'react';
-import { RealTimeClock } from './RealtimeWidgets';
-import { Dot, Icon, Pill, type IconName } from './ui';
-import { toneOf } from '../utils/tone';
-import {
-  KISUMU_FACILITIES,
-  INITIAL_LIVE_EVENTS,
-  subscribeToLiveEvents,
-  emitSimulatedLiveEvent,
-  type LiveHealthEvent,
-} from '../services/realtimeEngine';
-import { overviewData } from '../services/overviewData';
+import { settlements } from '../services/referralData'
+import { linkageMetrics, type Referral } from '../services/referralProtocol'
+import { RealTimeClock } from './RealtimeWidgets'
+import { Icon, type IconName } from './ui'
 
 interface LandingPageProps {
-  onEnterDashboard: (targetTab?: string) => void;
-  onOpenCopilot: () => void;
+  referrals: Referral[]
+  now: Date
+  onEnterDashboard: (targetTab?: string) => void
+  onOpenCopilot: () => void
 }
 
-export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProps) {
-  const [liveEvents, setLiveEvents] = useState<LiveHealthEvent[]>(INITIAL_LIVE_EVENTS);
-  const [facilitySearch, setFacilitySearch] = useState('');
-  const [selectedSubCountyFilter, setSelectedSubCountyFilter] = useState('All');
-  const [isLiveStreaming, setIsLiveStreaming] = useState(true);
+const PATHWAY: Array<{ icon: IconName; title: string; text: string }> = [
+  { icon: 'user', title: 'A CHP screens at home', text: 'PHQ-9, GAD-7 and AUDIT-C on a phone, with consent, working offline.' },
+  { icon: 'route', title: 'Rules set urgency and route', text: 'Urgent or routine, and the nearest facility with the right service and space.' },
+  { icon: 'calendar', title: 'The facility accepts and books', text: 'Notified at once. Accepts or declines with a reason, then books a time.' },
+  { icon: 'bell', title: 'Reminders and tracing', text: 'Reminders before the visit. A missed visit alerts the CHP to trace.' },
+  { icon: 'check', title: 'Feedback closes the loop', text: 'The CHP hears the outcome and what to do at the next home visit.' },
+]
 
-  // Subscribe to real-time events and interval simulator
-  useEffect(() => {
-    const unsubscribe = subscribeToLiveEvents((newEvent) => {
-      setLiveEvents((prev) => [newEvent, ...prev.slice(0, 9)]);
-    });
+const FEATURES: Array<{ icon: IconName; title: string; text: string; tab: string }> = [
+  { icon: 'list', title: 'Structured electronic referrals', text: 'Created from the screening, so every referral carries scores, urgency, consent and a pseudonymous ID. No paper slips to lose.', tab: 'New referral' },
+  { icon: 'coverage', title: 'Matched to the right facility', text: 'Ranked by the service needed, open slots, travel time from the settlement and waiting time, using the county referral directory.', tab: 'Directory' },
+  { icon: 'bell', title: 'Notification and acceptance', text: 'Receiving facilities are notified straight away and must accept or decline. Referrals nobody picks up are flagged after 24 hours.', tab: 'Referrals' },
+  { icon: 'calendar', title: 'Appointments, reminders and tracing', text: 'Bookings, reminders before the visit, and a tracing worklist for CHPs when someone misses an appointment.', tab: 'Follow-up' },
+  { icon: 'route', title: 'Feedback to referrers', text: 'The receiving clinician sends the outcome back, so the CHP can support the person at home. Every step is logged.', tab: 'Referrals' },
+  { icon: 'flag', title: 'Emergency escalation', text: 'Suicide risk, psychosis and risk of harm go straight to an on-call clinician by phone. They never wait in a queue.', tab: 'Escalations' },
+]
 
-    if (!isLiveStreaming) return unsubscribe;
-
-    const interval = setInterval(() => {
-      emitSimulatedLiveEvent();
-    }, 12000); // New telemetry event every 12s
-
-    return () => {
-      unsubscribe();
-      clearInterval(interval);
-    };
-  }, [isLiveStreaming]);
-
-  const filteredFacilities = KISUMU_FACILITIES.filter((f) => {
-    const matchesSearch =
-      f.name.toLowerCase().includes(facilitySearch.toLowerCase()) ||
-      f.subCounty.toLowerCase().includes(facilitySearch.toLowerCase()) ||
-      f.system.toLowerCase().includes(facilitySearch.toLowerCase());
-    const matchesSubCounty =
-      selectedSubCountyFilter === 'All' || f.subCounty === selectedSubCountyFilter;
-    return matchesSearch && matchesSubCounty;
-  });
-
-  const stats: Array<{ value: string; label: string; sub: string; tab: string }> = [
-    { value: '261', label: 'Health facilities', sub: '138 government-owned', tab: 'Overview' },
-    { value: '2,998', label: 'Community health promoters', sub: '280 community units, 307,185 households', tab: 'Data Quality' },
-    { value: '7', label: 'Sub-counties monitored', sub: 'Lake Victoria basin', tab: 'Disease Signals' },
-    { value: '92.7%', label: 'Facilities reporting weekly', sub: '242 of 261 this week', tab: 'Data Quality' },
-    { value: '4.2 h', label: 'Median alert verification', sub: 'Down from 18.5 h at baseline', tab: 'Pilot M&E' },
-  ];
-
-  const capabilities: Array<{ icon: IconName; title: string; text: string; link: string; action: () => void }> = [
-    {
-      icon: 'signals',
-      title: 'Disease signal detection',
-      text: 'A rolling baseline with a z-score flags unusual weekly counts of malaria, diarrhoeal disease, respiratory infection, suspected measles and suspected cholera for officers to verify.',
-      link: 'Open disease signals',
-      action: () => onEnterDashboard('Disease Signals'),
-    },
-    {
-      icon: 'commodity',
-      title: 'Commodity forecasting',
-      text: 'Seasonal and Holt-Winters models forecast three months of demand for AL, amoxicillin DT, ORS, zinc and malaria RDTs, and suggest redistribution for a pharmacist to approve.',
-      link: 'Review supply forecasts',
-      action: () => onEnterDashboard('Commodity Forecast'),
-    },
-    {
-      icon: 'coverage',
-      title: 'Service coverage gaps',
-      text: 'Household visits, antenatal care, skilled delivery and immunisation are compared with targets to show which community units are being missed, so outreach goes where it is needed.',
-      link: 'See coverage gaps',
-      action: () => onEnterDashboard('Service Coverage'),
-    },
-    {
-      icon: 'assistant',
-      title: 'AI decision support',
-      text: 'A copilot summarises what the numbers show in plain language and drafts advisories. Every output is labelled, logged and held for human confirmation.',
-      link: 'Ask the copilot',
-      action: onOpenCopilot,
-    },
-    {
-      icon: 'governance',
-      title: 'Data protection by design',
-      text: 'Aggregated data only, role-based access and a full access log. The design is shaped by the Data Protection Act (2019) and the Digital Health Act (2023).',
-      link: 'View the governance register',
-      action: () => onEnterDashboard('Data & Governance'),
-    },
-  ];
-
-  const eventTone = (severity: LiveHealthEvent['severity']) =>
-    severity === 'critical' ? 'critical' : severity === 'warning' ? 'high' : severity === 'info' ? 'info' : 'ok';
+export function LandingPage({ referrals, now, onEnterDashboard, onOpenCopilot }: LandingPageProps) {
+  const m = linkageMetrics(referrals, now)
+  const households = settlements.reduce((s, x) => s + x.households, 0)
 
   return (
     <div className="landing">
@@ -105,11 +37,11 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
         <div className="l-wrap l-header-inner">
           <div className="brand">
             <span className="crest" aria-hidden="true">
-              KH
+              KM
             </span>
             <div>
-              <p className="brand-sub">Republic of Kenya · County Government of Kisumu</p>
-              <p className="brand-name">Kisumu Health Intelligence</p>
+              <p className="brand-sub">County Government of Kisumu · ACDO West Kenya</p>
+              <p className="brand-name">Kisumu Mental Health Linkage</p>
             </div>
           </div>
           <div className="l-header-actions">
@@ -129,79 +61,78 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
       <section className="l-hero">
         <div className="l-wrap l-hero-grid">
           <div className="l-hero-copy">
-            <p className="eyebrow">Integrated Disease Surveillance and Response · Epi week 42</p>
-            <h1>Earlier action and better resource allocation for Kisumu County</h1>
+            <p className="eyebrow">Mental health referral and linkage to care</p>
+            <h1>No one lost between screening and care</h1>
             <p className="l-lede">
-              Community and facility data already held in eCHIS, KenyaEMR and KHIS become weekly disease signals,
-              medicine supply forecasts and service coverage gaps for all 7 sub-counties. Officers verify every alert before anyone acts
-              on it.
+              Community Health Promoters in Kisumu&apos;s informal settlements screen people with approved tools. The
+              system sends each person to the right facility, tracks the referral until they are seen, and tells the CHP
+              what happened. Emergencies go to a clinician by phone, never to a queue.
             </p>
             <div className="actions">
               <button type="button" className="btn btn-primary btn-lg" onClick={() => onEnterDashboard('Overview')}>
-                Open operations dashboard
+                Open the dashboard
                 <Icon name="arrow" size={16} />
               </button>
-              <button type="button" className="btn btn-lg" onClick={() => onEnterDashboard('Disease Signals')}>
-                View disease signals
+              <button type="button" className="btn btn-lg" onClick={() => onEnterDashboard('New referral')}>
+                Try a screening
               </button>
             </div>
           </div>
 
-          <div className="l-feed" aria-label="Live field events">
-            <div className="l-feed-head">
-              <p className="l-feed-title">
-                <span className={isLiveStreaming ? 'dot dot-ok pulse' : 'dot dot-neutral'} aria-hidden="true" />
-                {isLiveStreaming ? 'Live field events' : 'Feed paused'}
-              </p>
-              <div className="l-feed-tools">
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={() => setIsLiveStreaming(!isLiveStreaming)}
-                  aria-label={isLiveStreaming ? 'Pause feed' : 'Resume feed'}
-                  title={isLiveStreaming ? 'Pause feed' : 'Resume feed'}
-                >
-                  <Icon name={isLiveStreaming ? 'pause' : 'play'} size={16} />
-                </button>
-                <button
-                  type="button"
-                  className="icon-btn"
-                  onClick={() => emitSimulatedLiveEvent()}
-                  aria-label="Simulate an event"
-                  title="Simulate an event"
-                >
-                  <Icon name="plus" size={16} />
-                </button>
-              </div>
-            </div>
-            <ul className="l-feed-list">
-              {liveEvents.slice(0, 5).map((evt) => (
-                <li key={evt.id}>
-                  <Dot tone={eventTone(evt.severity)} />
+          <div className="l-pathway" aria-label="The referral pathway">
+            <p className="l-pathway-title">The referral pathway</p>
+            <ol>
+              {PATHWAY.map((step, i) => (
+                <li key={step.title}>
+                  <span className="l-step-icon">
+                    <Icon name={step.icon} size={18} />
+                  </span>
                   <div>
-                    <p className="l-feed-line">
-                      <strong>{evt.facility}</strong>
-                      <span>{evt.subCounty}</span>
+                    <p className="l-step-title">
+                      <span className="muted">{i + 1}.</span> {step.title}
                     </p>
-                    <p className="l-feed-msg">{evt.message}</p>
+                    <p className="l-step-text">{step.text}</p>
                   </div>
-                  <time className="mono">{evt.timestamp}</time>
                 </li>
               ))}
-            </ul>
-            <p className="l-feed-foot">Simulated telemetry from synthetic demo data.</p>
+            </ol>
+            <div className="l-branch">
+              <Icon name="flag" size={16} />
+              <span>
+                <strong>Emergency branch.</strong> Item 9 positive or a red flag skips the queue: stay with the person and
+                phone the on-call clinician.
+              </span>
+            </div>
           </div>
         </div>
 
         <div className="l-wrap">
           <dl className="l-stats">
-            {stats.map((stat) => (
-              <div key={stat.label}>
-                <dd className="num">{stat.value}</dd>
-                <dt>{stat.label}</dt>
-                <p>{stat.sub}</p>
-              </div>
-            ))}
+            <div>
+              <dd className="num">1 in 10</dd>
+              <dt>Kenyans with a common mental disorder</dt>
+              <p>Ministry of Health estimate, 2024</p>
+            </div>
+            <div>
+              <dd className="num">75%</dd>
+              <dt>Treatment gap</dt>
+              <p>Ministry of Health</p>
+            </div>
+            <div>
+              <dd className="num">0.22</dd>
+              <dt>Psychiatrists per 100,000 people</dt>
+              <p>WHO Mental Health Atlas 2020</p>
+            </div>
+            <div>
+              <dd className="num">9</dd>
+              <dt>Informal settlements in the pilot</dt>
+              <p>About {households.toLocaleString()} households</p>
+            </div>
+            <div>
+              <dd className="num">75%</dd>
+              <dt>Target: referrals seen in time</dt>
+              <p>Demo now at {m.withinTimeframe === null ? '–' : `${Math.round(m.withinTimeframe)}%`}</p>
+            </div>
           </dl>
         </div>
       </section>
@@ -210,53 +141,24 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
         <section className="l-wrap l-section">
           <div className="l-section-head">
             <div>
-              <p className="eyebrow">Sub-county risk</p>
-              <h2>Alert intensity across the county</h2>
+              <p className="eyebrow">Component 3 of the concept</p>
+              <h2>Intelligent referral, emergency escalation and linkage to care</h2>
             </div>
-            <button type="button" className="btn" onClick={() => onEnterDashboard('Disease Signals')}>
-              Open disease signals
+            <button type="button" className="btn" onClick={() => onEnterDashboard('Referrals')}>
+              See the referral queue
               <Icon name="arrow" size={16} />
             </button>
           </div>
-          <div className="l-counties">
-            {overviewData.subCounties.map((sc) => (
-              <button
-                key={sc.name}
-                type="button"
-                className={`map-tile tone-${toneOf(sc.alertLevel)}`}
-                onClick={() => onEnterDashboard('Disease Signals')}
-                title={`Open disease signals — ${sc.name}`}
-              >
-                <span className="map-tile-name">{sc.name}</span>
-                <span className="map-tile-index num">{sc.riskIndex}</span>
-                <span className="map-tile-meta">
-                  <span className="map-tile-level">{sc.alertLevel}</span>
-                  <span className="num">{sc.trend}</span>
-                </span>
-                <span className="map-tile-sub">{sc.facilities} facilities</span>
-              </button>
-            ))}
-          </div>
-          <p className="l-caption">Risk index 0–100 from weekly IDSR thresholds. Trend compares with the prior month.</p>
-        </section>
-
-        <section className="l-wrap l-section">
-          <div className="l-section-head">
-            <div>
-              <p className="eyebrow">What the platform does</p>
-              <h2>Analytics that leave the decisions with people</h2>
-            </div>
-          </div>
           <div className="l-caps">
-            {capabilities.map((cap) => (
-              <article key={cap.title} className="l-cap">
+            {FEATURES.map((f) => (
+              <article key={f.title} className="l-cap">
                 <span className="l-cap-icon">
-                  <Icon name={cap.icon} size={20} />
+                  <Icon name={f.icon} size={20} />
                 </span>
-                <h3>{cap.title}</h3>
-                <p>{cap.text}</p>
-                <button type="button" className="link-btn" onClick={cap.action}>
-                  {cap.link}
+                <h3>{f.title}</h3>
+                <p>{f.text}</p>
+                <button type="button" className="link-btn" onClick={() => onEnterDashboard(f.tab)}>
+                  Open {f.tab.toLowerCase()}
                   <Icon name="arrow" size={14} />
                 </button>
               </article>
@@ -267,100 +169,28 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
         <section className="l-wrap l-section">
           <div className="l-section-head">
             <div>
-              <p className="eyebrow">Facility registry</p>
-              <h2>Facility status directory</h2>
-            </div>
-            <div className="filters">
-              <label className="search">
-                <span className="sr-only">Search facilities</span>
-                <Icon name="search" size={16} />
-                <input
-                  id="facility-search"
-                  type="search"
-                  placeholder="Search facility, sub-county or system"
-                  value={facilitySearch}
-                  onChange={(e) => setFacilitySearch(e.target.value)}
-                />
-              </label>
-              <label>
-                <span className="sr-only">Filter by sub-county</span>
-                <select
-                  id="facility-subcounty"
-                  className="input"
-                  value={selectedSubCountyFilter}
-                  onChange={(e) => setSelectedSubCountyFilter(e.target.value)}
-                >
-                  <option value="All">All sub-counties</option>
-                  {overviewData.subCounties.map((s) => (
-                    <option key={s.name} value={s.name}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <p className="eyebrow">Where the pilot runs</p>
+              <h2>Nine informal settlements</h2>
             </div>
           </div>
-
-          <div className="panel">
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Facility</th>
-                    <th>Level</th>
-                    <th>Source</th>
-                    <th className="r">Active CHPs</th>
-                    <th className="r">Patients today</th>
-                    <th>Medicine stock</th>
-                    <th>Last sync</th>
-                    <th>
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredFacilities.map((fac) => (
-                    <tr key={fac.id}>
-                      <th scope="row" className="cell-text">
-                        {fac.name}
-                        <span className="cell-sub">{fac.subCounty}</span>
-                      </th>
-                      <td className="nowrap">{fac.level}</td>
-                      <td>
-                        <span className="tag">{fac.system}</span>
-                      </td>
-                      <td className="r num">{fac.chpsActive}</td>
-                      <td className="r num">{fac.patientsToday}</td>
-                      <td>
-                        <Pill>{fac.stockStatus}</Pill>
-                      </td>
-                      <td className="nowrap">
-                        <span className="inline-status">
-                          <Dot tone={toneOf(fac.status)} />
-                          {fac.lastSync}
-                        </span>
-                      </td>
-                      <td className="r">
-                        <button type="button" className="link-btn" onClick={() => onEnterDashboard('Commodity Forecast')}>
-                          Inspect
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredFacilities.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="empty">
-                        No facilities match that search. Clear the search or choose another sub-county.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
-            </div>
+          <div className="l-settlements">
+            {settlements.map((s) => {
+              const rs = referrals.filter((r) => r.settlement === s.name)
+              const mm = linkageMetrics(rs, now)
+              return (
+                <button key={s.name} type="button" className="l-settlement" onClick={() => onEnterDashboard('Overview')}>
+                  <span className="l-settlement-name">{s.name}</span>
+                  <span className="l-settlement-figure num">{rs.length}</span>
+                  <span className="muted">referrals</span>
+                  <span className="l-settlement-meta">
+                    {s.households.toLocaleString()} households · {s.communityUnits} CUs
+                    {mm.withinTimeframe !== null ? ` · ${Math.round(mm.withinTimeframe)}% seen in time` : ''}
+                  </span>
+                </button>
+              )
+            })}
           </div>
-          <p className="l-caption">
-            Showing {filteredFacilities.length} of {KISUMU_FACILITIES.length} facilities in the demo registry.
-          </p>
+          <p className="l-caption">Synthetic demo data. Household and community unit figures are illustrative.</p>
         </section>
       </main>
 
@@ -369,20 +199,20 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
           <div>
             <div className="brand">
               <span className="crest" aria-hidden="true">
-                KH
+                KM
               </span>
-              <p className="brand-name">County Department of Health, Kisumu</p>
+              <p className="brand-name">Kisumu Mental Health Linkage</p>
             </div>
             <p className="l-footer-text">
-              Prosperity House, Kisumu. A decision-support prototype that builds on eCHIS, KenyaEMR and KHIS rather
-              than replacing them.
+              A pilot of the Adventist Community Development Organization, West Kenya, with the Kisumu County Department of
+              Health. It builds on eCHIS, KenyaEMR and KHIS. It does not diagnose: health workers decide.
             </p>
           </div>
 
           <nav aria-label="Dashboard sections">
             <p className="nav-label">Dashboard</p>
             <ul className="l-links">
-              {['Overview', 'Disease Signals', 'Commodity Forecast', 'Service Coverage', 'Data Quality', 'Pilot M&E', 'Data & Governance'].map((tab) => (
+              {['Overview', 'Escalations', 'New referral', 'Referrals', 'Follow-up', 'Directory', 'Pilot M&E', 'Data & Governance'].map((tab) => (
                 <li key={tab}>
                   <button type="button" onClick={() => onEnterDashboard(tab)}>
                     {tab}
@@ -393,22 +223,22 @@ export function LandingPage({ onEnterDashboard, onOpenCopilot }: LandingPageProp
           </nav>
 
           <div>
-            <p className="nav-label">Report an outbreak</p>
+            <p className="nav-label">In a mental health emergency</p>
             <div className="l-hotline">
               <Icon name="phone" size={20} />
               <div>
-                <p>Disease surveillance hotline</p>
-                <p className="l-hotline-number num">0800 720 000</p>
-                <p className="l-hotline-note">Toll-free, 24 hours</p>
+                <p>If someone is in immediate danger, call</p>
+                <p className="l-hotline-number num">999 or 112</p>
+                <p className="l-hotline-note">County crisis line: to be confirmed</p>
               </div>
             </div>
           </div>
         </div>
         <div className="l-wrap l-footer-base">
-          <p>© {new Date().getFullYear()} County Government of Kisumu, Department of Health.</p>
-          <p>Synthetic demo data. Aggregated figures only.</p>
+          <p>© {now.getFullYear()} County Government of Kisumu and ACDO West Kenya.</p>
+          <p>Synthetic demo data. No real person is shown.</p>
         </div>
       </footer>
     </div>
-  );
+  )
 }

@@ -1,168 +1,146 @@
-import {
-  overallPilotStatus,
-  pilotIndicators,
-  pilotMESummary,
-  pilotTrendData,
-  subCountyPilotPerformance,
-  type PilotIndicator,
-} from '../services/pilotMEData'
-import { Sparkline } from '../components/charts'
-import { Facts, Panel, Pill } from '../components/ui'
-import { toneOf } from '../utils/tone'
+import { facilities, pilotPeriod } from '../services/referralData'
+import { attendedAt, dueAt, linkageMetrics, missingFields, type Referral } from '../services/referralProtocol'
+import { KpiStrip, Panel, Pill } from '../components/ui'
 
-const TREND_META: Record<keyof typeof pilotTrendData, { label: string; unit: string; lowerIsBetter?: boolean }> = {
-  timeliness: { label: 'Reporting timeliness', unit: '%' },
-  completeness: { label: 'Data completeness', unit: '%' },
-  verificationTime: { label: 'Alert verification time', unit: ' h', lowerIsBetter: true },
-  mape: { label: 'Forecast error (MAPE)', unit: '%', lowerIsBetter: true },
-  activeUsers: { label: 'Weekly active users', unit: '' },
-  signalActionRate: { label: 'Signals acted on', unit: '%' },
-  stockoutPrevention: { label: 'Stockouts prevented', unit: '%' },
-  coverageGapResponse: { label: 'Coverage gaps with outreach planned', unit: '%' },
+type Status = 'On Track' | 'At Risk' | 'Off Track' | 'Tracking'
+
+interface Indicator {
+  id: string
+  area: string
+  name: string
+  value: number | null
+  unit: '%' | 'count'
+  target: number | null
+  targetLabel: string
+  source: 'Live' | 'Synthetic'
+  how: string
 }
 
-function format(value: number | string, unit: string): string {
-  if (typeof value !== 'number') return String(value)
-  return unit === '%' ? value.toFixed(1) : String(value)
+/** On track at or above target; at risk within 10 points (or 85% of a count target); otherwise off track. */
+function statusOf(i: Indicator): Status {
+  if (i.value === null || i.target === null) return 'Tracking'
+  if (i.value >= i.target) return 'On Track'
+  const close = i.unit === '%' ? i.value >= i.target - 10 : i.value >= i.target * 0.85
+  return close ? 'At Risk' : 'Off Track'
 }
 
-/** How far the indicator has moved from baseline toward target, 0–100. Works for falling targets too. */
-function progress(indicator: PilotIndicator): number | null {
-  const current = Number(indicator.currentValue)
-  const baseline = Number(indicator.baselineValue)
-  const target = Number(indicator.targetValue)
-  if ([current, baseline, target].some(Number.isNaN) || target === baseline) return null
-  return Math.max(0, Math.min(((current - baseline) / (target - baseline)) * 100, 100))
-}
+const show = (i: Indicator) => (i.value === null ? '–' : i.unit === '%' ? `${Math.round(i.value)}%` : i.value.toLocaleString())
 
-function IndicatorCard({ indicator }: { indicator: PilotIndicator }) {
-  const pct = progress(indicator)
-  const unit = indicator.unit === '%' ? '%' : ` ${indicator.unit}`
-  return (
-    <article className="indicator">
-      <header className="indicator-head">
-        <span className="mono muted">{indicator.id}</span>
-        <Pill>{indicator.status}</Pill>
-      </header>
-      <h3>{indicator.name}</h3>
-      <p className="indicator-value num">
-        {format(indicator.currentValue, indicator.unit)}
-        <span className="kpi-unit">{indicator.unit}</span>
-      </p>
-      {pct !== null ? (
-        <div className="track" aria-label={`${Math.round(pct)}% of the way from baseline to target`}>
-          <div className={`track-fill tone-${toneOf(indicator.status)}`} style={{ width: `${pct}%` }} />
-        </div>
-      ) : null}
-      <div className="track-ends">
-        <span>
-          Baseline <span className="num">{format(indicator.baselineValue, indicator.unit)}{unit}</span>
-        </span>
-        <span>
-          Target <span className="num">{indicator.targetValue}{unit}</span>
-        </span>
-      </div>
-      <p className="indicator-desc">{indicator.description}</p>
-    </article>
-  )
-}
+export function PilotMEPage({ referrals, now }: { referrals: Referral[]; now: Date }) {
+  const m = linkageMetrics(referrals, now)
+  const due = referrals.filter((r) => attendedAt(r) || now > dueAt(r))
+  const assessed = due.filter((r) => attendedAt(r)).length
+  const followUpEligible = referrals.filter((r) => ['Attended', 'Completed', 'Missed'].includes(r.status))
+  const followedUp = followUpEligible.filter((r) => r.status === 'Completed' || r.events.some((e) => e.kind === 'Traced by CHP')).length
+  const complete = referrals.filter((r) => missingFields(r).length === 0).length
+  const active = facilities.filter((f) => f.activeInPilot).length
 
-export function PilotMEPage() {
-  const atRisk = pilotIndicators.filter((i) => i.status !== 'On Track')
-  const trends = Object.entries(pilotTrendData) as Array<[keyof typeof pilotTrendData, number[]]>
+  const indicators: Indicator[] = [
+    { id: 'PI-01', area: 'Digital screening', name: 'People screened with approved digital tools', value: 1284, unit: 'count', target: null, targetLabel: 'Set with the funder', source: 'Synthetic', how: 'Screenings recorded in eCHIS with PHQ-9, GAD-7 or AUDIT-C' },
+    { id: 'PI-02', area: 'Early identification', name: 'Screening-positive people who received a clinical assessment', value: due.length ? (assessed / due.length) * 100 : null, unit: '%', target: 80, targetLabel: '80% or more', source: 'Live', how: 'Attended referrals out of those whose timeframe has ended' },
+    { id: 'PI-03', area: 'Clinical assessment', name: 'Frontline health workers trained and supported', value: 268, unit: 'count', target: 327, targetLabel: '327', source: 'Synthetic', how: 'Training and mentorship register' },
+    { id: 'PI-04', area: 'Referral effectiveness', name: 'Referrals completed within the clinically appropriate timeframe', value: m.withinTimeframe, unit: '%', target: 75, targetLabel: '75% or more', source: 'Live', how: 'Seen within 3 days (urgent) or 14 days (routine)' },
+    { id: 'PI-05', area: 'Follow-up', name: 'Referred people with documented follow-up', value: followUpEligible.length ? (followedUp / followUpEligible.length) * 100 : null, unit: '%', target: 80, targetLabel: '80% or more', source: 'Live', how: 'Feedback sent after attendance, or tracing recorded after a missed visit' },
+    { id: 'PI-06', area: 'Data quality', name: 'Complete mandatory referral records', value: referrals.length ? (complete / referrals.length) * 100 : null, unit: '%', target: 90, targetLabel: '90% or more', source: 'Live', how: 'Consent, community unit and at least one screening score present' },
+    { id: 'PI-07', area: 'System adoption', name: 'Targeted facilities actively using the solution', value: (active / facilities.length) * 100, unit: '%', target: 80, targetLabel: '80% or more', source: 'Live', how: 'Facilities in the referral directory marked active' },
+    { id: 'PI-08', area: 'User experience', name: 'Health workers reporting better access to decision support', value: 76, unit: '%', target: 80, targetLabel: '80% or more', source: 'Synthetic', how: 'Quarterly user survey' },
+  ]
+
+  const statuses = indicators.map(statusOf)
+  const overall: Status = statuses.includes('Off Track') ? 'Off Track' : statuses.includes('At Risk') ? 'At Risk' : 'On Track'
+  const median = m.medianHoursToAttendance
+
+  const technical = [
+    { name: 'Time from identification to clinical assessment', how: 'Median time from referral to attendance', now: median === null ? '–' : `${(median / 24).toFixed(1)} days`, status: 'Live' },
+    { name: 'Referral rejection rate', how: 'Declined referrals out of all referrals', now: `${Math.round((m.declined / Math.max(m.total, 1)) * 100)}%`, status: 'Live' },
+    { name: 'Non-completion rate', how: 'Missed or overdue out of referrals whose timeframe has ended', now: `${Math.round(((m.missed + m.overdue) / Math.max(due.length, 1)) * 100)}%`, status: 'Live' },
+    { name: 'Sensitivity and specificity of the screening and risk rules', how: 'Against clinician assessment of the same people', now: 'Needs clinician-confirmed outcomes', status: 'Planned' },
+    { name: 'False positives and negatives by age, sex and settlement', how: 'Bias check on the same comparison', now: 'Needs clinician-confirmed outcomes', status: 'Planned' },
+    { name: 'Calibration of any predictive model', how: 'Only if a predictive model is added', now: 'No predictive model in the prototype', status: 'Planned' },
+    { name: 'System availability, offline use and sync', how: 'Uptime and sync logs from field devices', now: 'Measured once deployed', status: 'Planned' },
+    { name: 'Cost per person screened, assessed and linked to care', how: 'Implementation cost analysis, months 19–20', now: 'Measured during the pilot', status: 'Planned' },
+  ]
 
   return (
     <>
-      <section className="indicator-grid" aria-label="Pilot indicators">
-        {pilotIndicators.map((indicator) => (
-          <IndicatorCard key={indicator.id} indicator={indicator} />
-        ))}
-      </section>
+      <KpiStrip
+        label="Pilot status"
+        items={[
+          { label: 'Overall status', value: overall, note: 'Follows the weakest indicator' },
+          { label: 'Indicators on track', value: `${statuses.filter((s) => s === 'On Track').length} / ${indicators.length}`, note: `${statuses.filter((s) => s === 'Tracking').length} tracked without a target yet` },
+          { label: 'Calculated live', value: indicators.filter((i) => i.source === 'Live').length, note: 'From the referral records in this app' },
+          { label: 'Reporting period', value: pilotPeriod.replace('Pilot ', ''), note: 'Targets are proposals until the baseline' },
+        ]}
+      />
 
-      <Panel
-        eyebrow="Indicator trends"
-        title="Weekly progress over the 8-week pilot window"
-        aside={<span className="tag">{pilotMESummary.reportingPeriod}</span>}
-      >
-        <div className="spark-grid">
-          {trends.map(([key, values]) => {
-            const meta = TREND_META[key]
-            const first = values[0]
-            const latest = values[values.length - 1]
-            const change = latest - first
-            const improving = meta.lowerIsBetter ? change < 0 : change > 0
-            return (
-              <div key={key} className="spark-cell">
-                <p className="spark-label">{meta.label}</p>
-                <p className="spark-value num">
-                  {latest}
-                  {meta.unit}
-                  <span className={improving ? 'delta good' : 'delta bad'}>
-                    {change > 0 ? '+' : '−'}
-                    {Math.abs(change).toFixed(Number.isInteger(change) ? 0 : 1)}
-                  </span>
-                </p>
-                <Sparkline values={values} label={`${meta.label}: ${first}${meta.unit} to ${latest}${meta.unit}`} />
-                <p className="spark-range num">
-                  <span>W35</span>
-                  <span>W42</span>
-                </p>
-              </div>
-            )
-          })}
-        </div>
-      </Panel>
-
-      <Panel eyebrow="Pilot summary" title="Overall status" aside={<Pill>{overallPilotStatus()}</Pill>}>
-        <Facts
-          items={[
-            { label: 'Active sub-counties', value: pilotMESummary.activePilotSubCounties },
-            { label: 'Facilities in pilot', value: pilotMESummary.totalFacilitiesInPilot },
-            { label: 'Weekly active users', value: pilotMESummary.weeklyActiveUsers },
-            { label: 'Indicators on track', value: `${pilotIndicators.length - atRisk.length} / ${pilotIndicators.length}` },
-          ]}
-        />
-        <div className="callout">
-          <h3>Indicators needing attention</h3>
-          <p>{atRisk.map((i) => i.name).join(', ') || 'None. Every indicator is on track.'}</p>
-          <p className="callout-note">Overall status follows the weakest indicator.</p>
-        </div>
-      </Panel>
-
-      <Panel eyebrow="Sub-county performance" title="Indicator breakdown by sub-county" flush>
+      <Panel title="Pilot indicators" eyebrow="From the concept note, specific objective (c) and component 3" flush>
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
-                <th>Sub-county</th>
-                <th className="r">Timeliness</th>
-                <th className="r">Completeness</th>
-                <th className="r">Verify time</th>
-                <th className="r">MAPE</th>
-                <th className="r">Active users</th>
-                <th className="r">Signals acted on</th>
-                <th className="r">Stockouts prevented</th>
-                <th className="r">Gap response</th>
+                <th>ID</th>
+                <th>Indicator</th>
+                <th className="r">Now</th>
+                <th className="r">Target</th>
+                <th>Status</th>
+                <th>Source</th>
               </tr>
             </thead>
             <tbody>
-              {subCountyPilotPerformance.map((sc) => (
-                <tr key={sc.subCounty}>
-                  <th scope="row">{sc.subCounty}</th>
-                  <td className="r num">{sc.timeliness}%</td>
-                  <td className="r num">{sc.completeness}%</td>
-                  <td className="r num">{sc.verificationTime} h</td>
-                  <td className="r num">{sc.mape}%</td>
-                  <td className="r num">{sc.activeUsers}</td>
-                  <td className="r num">{sc.signalActionRate}%</td>
-                  <td className="r num">{sc.stockoutPrevention}%</td>
-                  <td className="r num">{sc.coverageGapResponse}%</td>
+              {indicators.map((i, n) => (
+                <tr key={i.id}>
+                  <td className="mono">{i.id}</td>
+                  <th scope="row" className="cell-text">
+                    {i.name}
+                    <span className="cell-sub">
+                      {i.area} · {i.how}
+                    </span>
+                  </th>
+                  <td className="r num">{show(i)}</td>
+                  <td className="r num nowrap">{i.targetLabel}</td>
+                  <td>
+                    <Pill>{statuses[n]}</Pill>
+                  </td>
+                  <td>
+                    <span className="tag">{i.source}</span>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </Panel>
+
+      <Panel title="Technical and clinical performance" eyebrow="Measures the pilot adds" flush>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Measure</th>
+                <th>How</th>
+                <th>Now</th>
+              </tr>
+            </thead>
+            <tbody>
+              {technical.map((t) => (
+                <tr key={t.name}>
+                  <th scope="row" className="cell-text">
+                    {t.name}
+                  </th>
+                  <td className="cell-text">{t.how}</td>
+                  <td>
+                    {t.status === 'Live' ? <span className="num">{t.now}</span> : <span className="muted">{t.now}</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <p className="page-foot">
+        These are proposed pilot targets, not county performance figures. They will be set after the baseline assessment with the County Department of Health. More screening will not be read as more illness.
+      </p>
     </>
   )
 }

@@ -1,111 +1,42 @@
-# Kisumu Health Intelligence
+# Kisumu Mental Health Linkage
 
-Kisumu Health Intelligence is an AI-enabled decision-support prototype for the County Department of Health, Kisumu County, Kenya. It turns routine facility and community health data into early alerts and supply forecasts, while building on existing systems such as eCHIS, KenyaEMR and KHIS rather than replacing them.
+A prototype for the **AI-Enabled Mental Health Intelligence, Early Identification, Diagnosis Support, Referral and Linkage to Care** concept of the Adventist Community Development Organization (ACDO), West Kenya, with the Kisumu County Department of Health.
 
-## Purpose
+This build focuses on **specific objective (c), strengthening referral and linkage to care**, delivered through **component 3: intelligent referral, emergency escalation and linkage to care**. It targets the informal settlements of Obunga, Nyalenda A and B, Manyatta A and B, Manyatta Arabs, Kaloleni, Kondele and Bandani.
 
-The solution supports county-level public health leadership with three AI-enabled use cases:
+All data is synthetic. Every person is fictional and identified only by a pseudonymous ID. Facility names, services, capacity and travel times are illustrative.
 
-1. Disease signal detection: flag unusual weekly case counts for verification by public health teams.
-2. Commodity forecasting: forecast demand and stockout risk for essential medicines.
-3. Service coverage gaps: show which community units fall short of coverage targets so outreach can be directed.
+## What component 3 asks for, and where it is
 
-## Target users and role model
+| Component 3 function | In the app |
+|---|---|
+| Structured electronic referral records | **New referral** creates the record from the screening: scores, urgency, consent and a pseudonymous ID |
+| Identify the right facility and provider | Destinations ranked by service, open slots, travel time from the settlement and waiting time (**Directory**) |
+| Notify receiving facilities and health workers | Role-aware notifications in the top bar |
+| Appointment scheduling and reminders | Book, move and rebook appointments; reminders due in **Follow-up** |
+| Acceptance and completion tracking | Each referral moves through Referred, Accepted, Scheduled, Attended and Feedback sent, against its timeframe (**Referrals**) |
+| Feedback to referring facilities and CHPs | The receiving clinician sends the outcome back and closes the loop |
+| Alerts for missed appointments | Missed visits go to a CHP tracing worklist |
+| Priority risk escalation | A positive PHQ-9 item 9 or any red flag opens the **Escalations** path: phone the on-call clinician. These cases never enter the referral queue |
 
-- County Health Manager: full access across all data
-- Sub-County Officer: access to their sub-county only
-- Facility In-charge: access to their facility only
-- Admin: user and system configuration management
+## How decisions are made
 
-Roles are stored in a separate `user_roles` table with row-level security, not on the profile table.
+- **Rules, not the model, decide.** Risk tier, service and destination come from fixed, testable rules in `src/services/referralProtocol.ts`.
+- **Screening thresholds** follow common published cut-offs (PHQ-9, GAD-7, AUDIT-C with sex-specific thresholds). They are placeholders until the County Mental Health Technical Team validates them against the 2024 National Clinical Guidelines.
+- **Timeframes** are urgent within 3 days and routine within 14 days, also placeholders for the county to confirm. Emergency escalations target a clinician response within 30 minutes.
+- **The AI only drafts.** The language model (gpt-oss-120b on Groq Cloud) drafts referral notes for the receiving clinician and a weekly linkage brief for the county coordinator, from pseudonymised or aggregated fields. Every output is labelled for review. It never handles emergencies.
 
-## Scope
+## Roles
 
-### 1. Overview page
-- KPI cards for facilities reporting this week, data completeness, timeliness, open alerts and stockout risk
-- 7-sub-county map of Kisumu County with alert shading
-- latest alerts list
-- last synced timestamp
-- CSV export on every table or dashboard view
-- skeleton loading states
+A role switch in the top bar stands in for sign-in, so the demo can show each side of a referral:
 
-### 2. Disease Signals
-- Weekly trend chart by sub-county for malaria, diarrhoeal disease, acute respiratory infection, suspected measles and suspected cholera
-- Expected range band using rolling baseline logic
-- Alert flagging where counts exceed baseline thresholds
-- Plain-language explanation of why a signal was flagged
-- Workflow states: Unverified, Under investigation, Confirmed or Dismissed
-- Officer assignment, notes and audit trail
+- **County coordinator:** the whole pathway, pseudonymised; redirects declined referrals and follows up stalled ones.
+- **Lumumba clinician:** referrals to Lumumba Sub-County Hospital; accepts, books, records attendance and sends feedback.
+- **CHP, Obunga:** their own referrals; screens, refers, raises emergencies and traces missed visits.
 
-### 3. Commodity Forecast
-- Products: artemether-lumefantrine (AL), amoxicillin DT, ORS, zinc and malaria RDTs
-- Show stock on hand, monthly consumption, 3-month forecast, confidence band, months of stock left and risk status
-- Redistribution suggestions only, with human approval required
+## Pages
 
-### 4. Service Coverage
-- Coverage against target by sub-county for household visits, antenatal care (4+ visits), skilled birth attendance and full immunisation
-- Households, community units and CHPs per sub-county
-- Priority gaps at community-unit cluster level, with a plain-language reason and a suggested action
-- Review states: Unreviewed, Outreach planned or Resolved, with sub-county team approval required
-
-### 5. Data Quality
-- Completeness, timeliness and validation issues by facility and source system
-- Facilities that failed to report
-
-### 6. Pilot M&E
-- Timeliness, completeness, alert verification time, forecast error (MAPE), weekly active users, coverage gap response
-- Indicators compared with baseline
-
-### 7. Data & Governance
-- Connected sources with last-sync times
-- Role permissions and access log
-- Data minimisation notes
-- AI output provenance and human confirmation requirement
-
-## Synthetic demo data
-
-This prototype uses clearly labelled synthetic demo data, with aggregated data only and no patient-level identifiers.
-
-The demo includes:
-- 261 facilities, including 138 government-owned facilities
-- 280 community units
-- 2,998 CHPs
-- 7 sub-counties: Kisumu Central, Kisumu East, Kisumu West, Seme, Nyakach, Nyando and Muhoroni
-- 2 years of weekly data with seasonality
-- Planted events including diarrhoeal disease spikes and stockout risk clusters to ensure alerts appear in the demo
-
-## AI and analytics methods
-
-The prototype uses transparent, explainable methods:
-- Rolling baseline with z-score for disease signals
-- Seasonal naive or Holt-Winters for demand forecasting
-- Plain-language summaries generated from the numbers shown only, without inventing facts
-
-## Design approach
-
-- Calm, government-grade visual design using deep teal and navy tones
-- Clear typography and generous whitespace
-- WCAG AA contrast orientation
-- Responsive interface for low-bandwidth conditions
-- English-first interface, structured to support later Swahili localisation
-
-## Privacy and safety
-
-The design is shaped by Kenya’s Data Protection Act (2019) and Digital Health Act (2023), without claiming full compliance. The prototype makes clear that:
-- data is aggregated
-- AI output is labelled and logged
-- human confirmation is required before any action
-- there is no patient-level identifier use in the demo
-
-## Current status
-
-This repository currently contains the first build stage requested by the client:
-- app shell and navigation
-- synthetic data layer
-- Overview page only
-- working CSV export button for the overview dashboard
-
-The remaining pages are intentionally deferred until review of this first page.
+Overview, Escalations, New referral, Referrals, Follow-up, Directory, Pilot M&E (concept note indicators, most calculated live) and Data & Governance.
 
 ## Run locally
 
@@ -114,4 +45,23 @@ npm install
 npm run dev
 ```
 
-Then open the local Vite URL shown in the terminal.
+Open the address Vite prints. Add `?view=landing` for the public page. Changes are saved in your browser; use **Reset demo data** in the sidebar to start again.
+
+## AI key
+
+The browser never holds an API key. All AI requests go to the server function `api/chat.ts`, which accepts requests only from this site, limits request size and rate, and allows only the approved models.
+
+The server uses the `GROQ_API_KEY` environment variable if it is set, and otherwise the project's original key, which is kept in `api/chat.ts`.
+
+- **On Vercel:** to use a different key, add `GROQ_API_KEY` under Project settings → Environment Variables, then redeploy.
+- **On your own computer:** run `npm run dev`. To use a different key, create `.env.local` containing `GROQ_API_KEY=your-key`. Git ignores this file.
+
+**Security note:** the original key is in this public repository, so anyone can read and use it. Replace it with a key set in the server environment, and revoke the original, before the app handles real data.
+
+## Before any real use
+
+- Complete a Data Protection Impact Assessment.
+- Replace the demo role switch with sign-in and enforced role-based access.
+- Validate thresholds, timeframes and the referral directory with the county.
+- Confirm on-call and crisis numbers. The app shows placeholders.
+- Replace and revoke the original Groq key, which is published in this repository.

@@ -14,39 +14,44 @@ interface AiCopilotDrawerProps {
 
 const DEFAULT_QUESTIONS: Record<string, string[]> = {
   Overview: [
-    'Summarise Kisumu County public health highlights this week',
-    'Which sub-counties have the highest alert intensity and why?',
-    'What key risks should be highlighted to the County Health Executive?',
+    'Where is the referral pathway losing the most people, and why might that be?',
+    'Which settlements should the coordinator follow up this week?',
+    'What would raise the share of referrals seen within the timeframe?',
   ],
-  'Disease Signals': [
-    'Explain the Nyakach malaria spike and recommended response',
-    'What IDSR active case-finding actions should CHPs take?',
-    'Draft a clinical triage advisory for suspected cholera/diarrhoea',
+  Escalations: [
+    'What should a CHP do while waiting for the on-call clinician?',
+    'How should an escalation be followed up after handover?',
+    'What makes an escalation protocol safe in a low-connectivity setting?',
   ],
-  'Commodity Forecast': [
-    'Which facilities face immediate AL and ORS stockout risk?',
-    'Provide an inter-facility redistribution plan for Nyando',
-    'What buffer stock should be requested from KEMSA urgently?',
+  'New referral': [
+    'How should a CHP explain a positive screening result without stigma?',
+    'What does a positive PHQ-9 item 9 require under mhGAP?',
+    'When should alcohol use be referred before depression?',
   ],
-  'Service Coverage': [
-    'Which sub-counties are furthest below their coverage targets?',
-    'Explain the household visit gap in Muhoroni and what to verify',
-    'Draft an outreach plan for the Nyakach immunisation gap',
+  Referrals: [
+    'What should good feedback to a CHP include after a referral is seen?',
+    'How should a facility decide whether to decline a referral?',
+    'What should be checked when a referral has no consent recorded?',
   ],
-  'Data Quality': [
-    'Which facilities are non-reporting and what is the escalation procedure?',
-    'How do eCHIS, KenyaEMR and KHIS completeness metrics compare?',
-    'Identify validation failures requiring HRO field visits',
+  'Follow-up': [
+    'How should a CHP trace someone who missed a mental health appointment?',
+    'How can reminders be sent without disclosing someone’s mental health status?',
+    'What are common reasons people miss mental health referrals in informal settlements?',
+  ],
+  Directory: [
+    'Which services are hardest to reach from Bandani and Obunga?',
+    'How should referrals be balanced when a facility is full?',
+    'What should the referral directory record for each facility?',
   ],
   'Pilot M&E': [
-    'Analyse alert verification time progress against baseline',
-    'Evaluate forecast accuracy (MAPE) trends across sub-counties',
-    'Strategies to boost weekly active users in Seme and Muhoroni?',
+    'Which indicators are furthest from target, and what would move them?',
+    'How should sensitivity and specificity of the screening rules be measured?',
+    'How do we avoid reading more screening as more illness?',
   ],
   'Data & Governance': [
-    'Review compliance with Kenya Data Protection Act 2019',
-    'Explain the AI provenance and human confirmation safeguards',
-    'What critical gaps are identified in the governance register?',
+    'What must a Data Protection Impact Assessment cover for this pilot?',
+    'How should referral records for adolescents be protected?',
+    'What should the county check before connecting to KenyaEMR?',
   ],
 };
 
@@ -84,18 +89,16 @@ export const AiCopilotDrawer: React.FC<AiCopilotDrawerProps> = ({
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
-      content: `**Jambo.** I am the decision-support assistant for the County Department of Health, Kisumu.
+      content: `**Jambo.** I help health workers in the Kisumu mental health referral and linkage pilot.
 
-I can see aggregated data for **7 sub-counties** and **261 facilities**, and can help with:
+I can help you:
 
-- **Disease surveillance**: epidemiological signals and IDSR protocols
-- **Supply chain**: commodity forecasts and KEMSA redistribution
-- **Data quality**: reporting gaps and validation failures
-- **Governance**: Kenya Data Protection Act controls
+- **Understand screening results** and what the referral rules mean
+- **Write clear referral notes** and feedback to CHPs
+- **Plan follow-up** for missed appointments
+- **Read the pathway figures** and spot where people are getting lost
 
-> All AI insights require human verification before action.
-
-How can I support your public health decision-making today?`,
+I don't diagnose, and I never handle emergencies. **If someone may harm themselves or others, stop and phone the on-call clinician now.**`,
     },
   ]);
   const [input, setInput] = useState('');
@@ -137,7 +140,7 @@ How can I support your public health decision-making today?`,
         ...prev,
         {
           role: 'assistant',
-          content: `**Could not reach Groq Cloud AI**\n\n${err.message || 'Unable to complete request.'}\n\nPlease check your API key in **Settings**.`,
+          content: `**The assistant could not answer**\n\n${err.message || 'Unable to complete the request.'}`,
         },
       ]);
     } finally {
@@ -168,7 +171,7 @@ How can I support your public health decision-making today?`,
         <header className="drawer-head">
           <div>
             <p className="eyebrow">Decision support · {activeTab}</p>
-            <h2>Health copilot</h2>
+            <h2>Referral copilot</h2>
           </div>
           <div className="drawer-tools">
             <button type="button" className="btn btn-sm btn-quiet" onClick={clearChat}>
@@ -186,7 +189,7 @@ How can I support your public health decision-making today?`,
         <p className="drawer-context">
           <span className="dot dot-ok" aria-hidden="true" />
           <span className="mono">{modelLabel}</span>
-          <span>Aggregated data only. Verify before acting.</span>
+          <span>Pseudonymised data only. Not for emergencies.</span>
         </p>
 
         <div className="chat">

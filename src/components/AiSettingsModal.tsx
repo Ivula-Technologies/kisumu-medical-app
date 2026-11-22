@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import {
-  getGroqApiKey,
-  setGroqApiKey,
   getGroqModel,
   setGroqModel,
   testGroqConnection,
   AVAILABLE_MODELS,
-  DEFAULT_GROQ_KEY,
 } from '../services/groqService';
 import { Icon } from './ui';
 
@@ -21,7 +18,6 @@ export const AiSettingsModal: React.FC<AiSettingsModalProps> = ({
   onClose,
   onSaved,
 }) => {
-  const [apiKey, setApiKeyState] = useState(getGroqApiKey());
   const [model, setModelState] = useState(getGroqModel());
   const [testResult, setTestResult] = useState<{
     tested: boolean;
@@ -37,8 +33,6 @@ export const AiSettingsModal: React.FC<AiSettingsModalProps> = ({
     setIsTesting(true);
     setTestResult({ tested: false, ok: false });
 
-    // Temporarily apply input values for the test
-    setGroqApiKey(apiKey);
     setGroqModel(model);
 
     try {
@@ -49,11 +43,11 @@ export const AiSettingsModal: React.FC<AiSettingsModalProps> = ({
         latencyMs: result.latencyMs,
         error: result.error,
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       setTestResult({
         tested: true,
         ok: false,
-        error: e.message || 'Connection failed',
+        error: e instanceof Error ? e.message : 'Connection failed',
       });
     } finally {
       setIsTesting(false);
@@ -61,18 +55,10 @@ export const AiSettingsModal: React.FC<AiSettingsModalProps> = ({
   };
 
   const handleSave = () => {
-    setGroqApiKey(apiKey);
     setGroqModel(model);
     onSaved?.();
     onClose();
   };
-
-  const handleResetDefault = () => {
-    setApiKeyState(DEFAULT_GROQ_KEY);
-    setGroqApiKey(DEFAULT_GROQ_KEY);
-  };
-
-  const maskedKey = apiKey.length > 12 ? `${apiKey.slice(0, 7)}...${apiKey.slice(-5)}` : apiKey;
 
   return (
     <div className="overlay overlay-center" onClick={onClose}>
@@ -88,27 +74,13 @@ export const AiSettingsModal: React.FC<AiSettingsModalProps> = ({
         </header>
 
         <div className="modal-body">
-          <div className="field">
-            <label className="field-label" htmlFor="groq-key-input">
-              Groq Cloud API key
-            </label>
-            <input
-              id="groq-key-input"
-              className="input mono"
-              type="password"
-              placeholder="gsk_..."
-              value={apiKey}
-              onChange={(e) => setApiKeyState(e.target.value)}
-            />
-            <p className="field-hint">
-              <span>
-                Active key <code>{maskedKey}</code>
-              </span>
-              <button type="button" className="link-btn" onClick={handleResetDefault}>
-                Reset to default key
-              </button>
-            </p>
-          </div>
+          <p className="notice">
+            <Icon name="governance" size={16} />
+            <span>
+              The AI key is kept on the server and is never sent to your browser. Ask the system administrator if the
+              connection test fails.
+            </span>
+          </p>
 
           <div className="field">
             <label className="field-label" htmlFor="groq-model-select">
@@ -131,10 +103,10 @@ export const AiSettingsModal: React.FC<AiSettingsModalProps> = ({
                   testResult.ok ? (
                     <span className="text-ok">Connected. {testResult.latencyMs} ms round trip.</span>
                   ) : (
-                    <span className="text-critical">Failed: {testResult.error || 'check the key and network'}</span>
+                    <span className="text-critical">Failed: {testResult.error || 'check the network'}</span>
                   )
                 ) : (
-                  'Checks the key and measures round-trip latency.'
+                  'Checks the server can reach the AI service and measures the round trip.'
                 )}
               </p>
             </div>
