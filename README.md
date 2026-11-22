@@ -49,14 +49,14 @@ Open the address Vite prints. Add `?view=landing` for the public page. Changes a
 
 ## AI key
 
-The browser never holds an API key. All AI requests go to the server function `api/chat.ts`, which reads the key from the `GROQ_API_KEY` environment variable, accepts requests only from this site, limits request size and rate, and allows only the approved models.
+The browser never holds an API key. All AI requests go to the server function `api/chat.ts`, which accepts requests only from this site, limits request size and rate, and allows only the approved models.
 
-- **On Vercel:** Project settings → Environment Variables → add `GROQ_API_KEY`, then redeploy.
-- **On your own computer:** create a file named `.env.local` in the project folder containing `GROQ_API_KEY=your-key`, then run `npm run dev`. Git ignores this file.
+The server uses the `GROQ_API_KEY` environment variable if it is set, and otherwise the project's original key, which is kept in `api/chat.ts`.
 
-Without a key the app still works; the AI buttons show that the assistant is not set up.
+- **On Vercel:** to use a different key, add `GROQ_API_KEY` under Project settings → Environment Variables, then redeploy.
+- **On your own computer:** run `npm run dev`. To use a different key, create `.env.local` containing `GROQ_API_KEY=your-key`. Git ignores this file.
 
-**Security note:** an earlier version of this repository contained a Groq key in its source code, and the repository is public. That key must be revoked in the Groq account that created it. Removing it from the code does not stop anyone who already copied it.
+**Security note:** the original key is in this public repository, so anyone can read and use it. Replace it with a key set in the server environment, and revoke the original, before the app handles real data.
 
 ## Before any real use
 
@@ -64,4 +64,4 @@ Without a key the app still works; the AI buttons show that the assistant is not
 - Replace the demo role switch with sign-in and enforced role-based access.
 - Validate thresholds, timeframes and the referral directory with the county.
 - Confirm on-call and crisis numbers. The app shows placeholders.
-- Revoke the old Groq key that was published in the repository history.
+- Replace and revoke the original Groq key, which is published in this repository.

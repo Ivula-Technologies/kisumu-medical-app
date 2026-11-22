@@ -5,6 +5,10 @@
 // dev server calls the same handler (see vite.config.ts).
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+// Original project key, kept by the owner's decision. A GROQ_API_KEY set in the
+// server environment takes priority. This key stays on the server and is never
+// sent to the browser.
+const FALLBACK_GROQ_KEY = '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'
 const ALLOWED_MODELS = new Set(['openai/gpt-oss-120b', 'openai/gpt-oss-20b'])
 const DEFAULT_MODEL = 'openai/gpt-oss-120b'
 const MAX_MESSAGES = 16
@@ -74,7 +78,7 @@ export default async function handler(req: any, res: any) {
     return res.status(429).json({ error: 'Too many AI requests. Wait a few minutes and try again.' })
   }
 
-  const apiKey = process.env.GROQ_API_KEY
+  const apiKey = process.env.GROQ_API_KEY || FALLBACK_GROQ_KEY
   if (!apiKey) {
     return res.status(503).json({ error: 'The AI assistant is not set up on this server yet.' })
   }
