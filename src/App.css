@@ -3218,6 +3218,40 @@ textarea.input {
   color: var(--ink-3);
 }
 
+/* Sits under the app name in the sidebar. */
+.brand-powered {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.brand-powered strong {
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.powered {
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.powered strong {
+  font-weight: 600;
+  color: var(--brand);
+}
+
+.powered-lg {
+  margin-top: 14px;
+  padding: 0;
+  font-size: var(--text-sm);
+}
+
+.powered-header {
+  padding: 0 4px 0 0;
+  white-space: nowrap;
+}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 
 @media (max-width: 1180px) {
@@ -3374,6 +3408,7 @@ textarea.input {
   }
 
   .l-header .clock,
+  .l-header .powered-header,
   .l-header .brand-sub,
   .l-header .btn:not(.btn-primary) .btn-label {
     display: none;

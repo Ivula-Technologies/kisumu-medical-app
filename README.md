@@ -1,5 +1,7 @@
 # Kisumu Mental Health Linkage
 
+Powered by **Ivula Technologies**.
+
 A prototype for the **AI-Enabled Mental Health Intelligence, Early Identification, Diagnosis Support, Referral and Linkage to Care** concept of the Adventist Community Development Organization (ACDO), West Kenya, with the Kisumu County Department of Health.
 
 This build focuses on **specific objective (c), strengthening referral and linkage to care**, delivered through **component 3: intelligent referral, emergency escalation and linkage to care**. It targets the informal settlements of Obunga, Nyalenda A and B, Manyatta A and B, Manyatta Arabs, Kaloleni, Kondele and Bandani.
