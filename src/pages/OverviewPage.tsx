@@ -1,221 +1,238 @@
 import { useState } from 'react'
-import { overviewData, type CountyAlert } from '../services/overviewData'
-import { diseaseTrendSummary } from '../services/diseaseSignalsData'
+import { facilities, settlements, weeklyTrend, type Escalation } from '../services/referralData'
+import { attendedAt, linkageMetrics, median, SETTLEMENTS, type Referral } from '../services/referralProtocol'
+import type { Role } from '../services/roles'
+import { generateLinkageBrief } from '../services/groqService'
 import { AreaChart } from '../components/charts'
-import { AnimatedCounter } from '../components/RealtimeWidgets'
-import { Dot, Facts, KpiStrip, Panel, Pill } from '../components/ui'
-import { toneOf } from '../utils/tone'
+import { Funnel } from '../components/referral'
+import { AiOutput, Icon, KpiStrip, Panel } from '../components/ui'
+import { relative } from '../utils/time'
 
-/* Sub-counties placed roughly where they sit around the Winam Gulf:
-   Seme and Kisumu West to the west, the city in the middle, Nyando and
-   Muhoroni to the east, Nyakach on the southern shore. */
-const MAP_POSITIONS: Record<string, string> = {
-  'Kisumu West': 'a',
-  'Kisumu East': 'b',
-  Muhoroni: 'c',
-  Seme: 'd',
-  'Kisumu Central': 'e',
-  Nyando: 'f',
-  Nyakach: 'g',
+const HOUR = 3_600_000
+const pct = (v: number | null) => (v === null ? '–' : `${Math.round(v)}%`)
+
+interface Props {
+  role: Role
+  referrals: Referral[]
+  escalations: Escalation[]
+  now: Date
+  onOpenEscalations: () => void
 }
 
-function CountyTile({ county, onOpen }: { county: CountyAlert; onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      className={`map-tile tone-${toneOf(county.alertLevel)}`}
-      style={{ gridArea: MAP_POSITIONS[county.name] }}
-      onClick={onOpen}
-      title={`Open disease signals — ${county.name}`}
-    >
-      <span className="map-tile-name">{county.name}</span>
-      <span className="map-tile-index num">{county.riskIndex}</span>
-      <span className="map-tile-meta">
-        <span className="map-tile-level">{county.alertLevel}</span>
-        <span className="num">{county.trend}</span>
-      </span>
-    </button>
-  )
-}
+export function OverviewPage({ role, referrals, escalations, now, onOpenEscalations }: Props) {
+  const m = linkageMetrics(referrals, now)
+  const active = escalations.filter((e) => e.status === 'Awaiting clinician' || e.status === 'Clinician on the line')
+  const [brief, setBrief] = useState('')
+  const [drafting, setDrafting] = useState(false)
+  const [error, setError] = useState('')
 
-export function OverviewPage({ onOpenSignals }: { onOpenSignals: () => void }) {
-  const [showAll, setShowAll] = useState(false)
-  const [disease, setDisease] = useState('All')
-  const weeks = diseaseTrendSummary[0].weeklyCounts.map((_, i) => `W${35 + i}`)
-  const trend =
-    disease === 'All'
-      ? weeks.map((_, i) => diseaseTrendSummary.reduce((sum, d) => sum + d.weeklyCounts[i], 0))
-      : (diseaseTrendSummary.find((d) => d.disease === disease) ?? diseaseTrendSummary[0]).weeklyCounts
-  const trendChange = Math.round(((trend[trend.length - 1] - trend[0]) / trend[0]) * 100)
-  const { metrics, subCounties, latestAlerts, facilitySnapshot } = overviewData
-  const alerts = showAll ? latestAlerts : latestAlerts.slice(0, 4)
-  const reportingPct = (metrics.reportingThisWeek / metrics.totalFacilities) * 100
+  const bySettlement = SETTLEMENTS.map((name) => {
+    const rs = referrals.filter((r) => r.settlement === name)
+    const mm = linkageMetrics(rs, now)
+    const profile = settlements.find((s) => s.name === name)!
+    return { name, profile, count: rs.length, mm }
+  }).filter((row) => row.count > 0 || role.id === 'county')
+
+  const byFacility = facilities
+    .map((f) => {
+      const rs = referrals.filter((r) => r.toFacilityId === f.id)
+      const decided = rs.filter((r) => r.events.some((e) => e.kind === 'Accepted' || e.kind === 'Declined'))
+      const accepted = rs.filter((r) => r.events.some((e) => e.kind === 'Accepted'))
+      const hoursToDecide = decided.map((r) => {
+        const e = r.events.find((x) => x.kind === 'Accepted' || x.kind === 'Declined')!
+        return (new Date(e.at).getTime() - new Date(r.createdAt).getTime()) / HOUR
+      })
+      return { f, count: rs.length, acceptRate: decided.length ? (accepted.length / decided.length) * 100 : null, hours: median(hoursToDecide), mm: linkageMetrics(rs, now) }
+    })
+    .filter((row) => row.count > 0)
+
+  const draftBrief = async () => {
+    setDrafting(true)
+    setError('')
+    const lagging = bySettlement.filter((s) => s.mm.withinTimeframe !== null).sort((a, b) => (a.mm.withinTimeframe ?? 0) - (b.mm.withinTimeframe ?? 0))
+    try {
+      setBrief(
+        await generateLinkageBrief([
+          `${m.total} referrals in the pilot so far, ${m.open} still open`,
+          `Seen within the clinical timeframe: ${pct(m.withinTimeframe)} (target 75%)`,
+          `Pathway counts: ${m.funnel.map((f) => `${f.stage} ${f.count}`).join(', ')}`,
+          `Awaiting acceptance: ${m.awaitingAcceptance}; overdue: ${m.overdue}; missed appointments: ${m.missed}; declined: ${m.declined}`,
+          `Feedback sent to referrers for ${pct(m.feedbackClosed)} of attended referrals (target 80%)`,
+          `Median time from referral to being seen: ${m.medianHoursToAttendance === null ? 'n/a' : `${(m.medianHoursToAttendance / 24).toFixed(1)} days`}`,
+          `Lowest settlements for timeliness: ${lagging.slice(0, 3).map((s) => `${s.name} ${pct(s.mm.withinTimeframe)}`).join(', ')}`,
+          `Facilities: ${byFacility.map((r) => `${r.f.short} received ${r.count}, accepted ${pct(r.acceptRate)}, median ${r.hours === null ? 'n/a' : Math.round(r.hours) + ' h'} to respond`).join('; ')}`,
+          `Active emergency escalations: ${active.length}`,
+        ]),
+      )
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setDrafting(false)
+    }
+  }
 
   return (
     <>
+      {active.length && role.id !== 'chp' ? (
+        <button type="button" className="alert-banner" onClick={onOpenEscalations}>
+          <span className="dot dot-critical pulse" aria-hidden="true" />
+          <span>
+            <strong>
+              {active.length} emergency escalation{active.length > 1 ? 's' : ''} active.
+            </strong>{' '}
+            {active.map((e) => `${e.id} in ${e.settlement}, raised ${relative(e.raisedAt, now)}`).join('; ')}
+          </span>
+          <span className="alert-link">
+            Open <Icon name="arrow" size={14} />
+          </span>
+        </button>
+      ) : null}
+
       <KpiStrip
-        label="Overview metrics"
+        label="Referral and linkage"
         items={[
           {
-            label: 'Facilities reporting',
-            value: <AnimatedCounter target={metrics.reportingThisWeek} />,
-            unit: `/ ${metrics.totalFacilities}`,
-            meter: { value: reportingPct, tone: 'brand' },
-            note: `${reportingPct.toFixed(1)}% this week`,
-            detail: '+4.2% vs previous week',
+            label: 'Seen within timeframe',
+            value: m.withinTimeframe === null ? '–' : Math.round(m.withinTimeframe),
+            unit: m.withinTimeframe === null ? undefined : '%',
+            meter: m.withinTimeframe === null ? undefined : { value: m.withinTimeframe, tone: m.withinTimeframe >= 75 ? 'ok' : 'high' },
+            note: 'Target 75% or more',
+            detail: 'Urgent within 3 days, routine within 14',
+          },
+          { label: 'Open referrals', value: m.open, note: `${m.total} since the pilot started`, detail: `${m.awaitingAcceptance} awaiting acceptance` },
+          {
+            label: 'Missed or overdue',
+            value: m.missed + m.overdue,
+            meter: { value: m.missed + m.overdue, max: Math.max(m.open, 1), tone: 'high' },
+            note: `${m.missed} missed, ${m.overdue} overdue`,
+            detail: `${m.declined} declined, needing redirection`,
           },
           {
-            label: 'Data completeness',
-            value: <AnimatedCounter target={metrics.completeness} decimals={1} />,
-            unit: '%',
-            meter: { value: metrics.completeness, tone: 'brand' },
-            note: 'Quality threshold met',
-            detail: '+1.1 points',
+            label: 'Feedback to referrer',
+            value: m.feedbackClosed === null ? '–' : Math.round(m.feedbackClosed),
+            unit: m.feedbackClosed === null ? undefined : '%',
+            meter: m.feedbackClosed === null ? undefined : { value: m.feedbackClosed, tone: m.feedbackClosed >= 80 ? 'ok' : 'high' },
+            note: 'Of attended referrals',
+            detail: 'Target 80% or more',
           },
           {
-            label: 'Reporting timeliness',
-            value: <AnimatedCounter target={metrics.timeliness} decimals={1} />,
-            unit: '%',
-            meter: { value: metrics.timeliness, tone: 'brand' },
-            note: 'Within expected window',
-            detail: 'Target 90%',
-          },
-          {
-            label: 'Open alerts',
-            value: <AnimatedCounter target={metrics.openAlerts} />,
-            meter: { value: metrics.openAlerts, max: 20, tone: 'high' },
-            note: '12 active investigations',
-            detail: '5 require escalation',
-          },
-          {
-            label: 'Facilities at stockout risk',
-            value: <AnimatedCounter target={metrics.stockoutRisk} />,
-            meter: { value: metrics.stockoutRisk, max: 20, tone: 'critical' },
-            note: 'Risk threshold reviewed',
-            detail: '3 facilities flagged red',
+            label: 'Median time to be seen',
+            value: m.medianHoursToAttendance === null ? '–' : (m.medianHoursToAttendance / 24).toFixed(1),
+            unit: m.medianHoursToAttendance === null ? undefined : 'days',
+            note: 'From referral to attendance',
           },
         ]}
       />
 
       <div className="grid grid-main">
-        <Panel
-          eyebrow="Reported cases"
-          title="Priority diseases, last 8 weeks"
-          aside={
-            <label>
-              <span className="sr-only">Disease</span>
-              <select id="overview-disease" className="input input-sm" value={disease} onChange={(e) => setDisease(e.target.value)}>
-                <option value="All">All five diseases</option>
-                {diseaseTrendSummary.map((d) => (
-                  <option key={d.disease} value={d.disease}>
-                    {d.disease}
-                  </option>
-                ))}
-              </select>
-            </label>
-          }
-        >
-          <p className="chart-headline">
-            <span className="num">{trend[trend.length - 1].toLocaleString()}</span> cases in week 42
-            <span className={trendChange > 0 ? 'delta bad' : 'delta good'}>
-              {trendChange > 0 ? '+' : '−'}
-              {Math.abs(trendChange)}% since week 35
-            </span>
-          </p>
-          <AreaChart
-            values={trend}
-            labels={weeks}
-            label={`Weekly reported cases, ${disease === 'All' ? 'all five priority diseases' : disease}, weeks 35 to 42`}
-          />
+        <Panel title="Where people drop out of the pathway" eyebrow="All referrals in the pilot">
+          <Funnel stages={m.funnel} />
+          <p className="field-hint">Each bar counts referrals that reached that step. The red figure is the share lost since the step before.</p>
         </Panel>
-
-        <Panel
-          eyebrow="Latest alerts"
-          title="Signals requiring review"
-          flush
-          aside={
-            latestAlerts.length > 4 ? (
-              <button type="button" className="btn btn-quiet btn-sm" onClick={() => setShowAll((v) => !v)}>
-                {showAll ? 'Show fewer' : `View all ${latestAlerts.length}`}
-              </button>
-            ) : null
-          }
-        >
-          <ul className="rows">
-            {alerts.map((alert) => (
-              <li key={alert.id} className="row">
-                <Dot tone={toneOf(alert.level)} />
-                <div className="row-main">
-                  <p className="row-title">{alert.title}</p>
-                  <p className="row-meta">
-                    <span className="mono">{alert.id}</span> · {alert.subCounty} · {alert.disease} · {alert.age}
-                  </p>
-                </div>
-                <div className="row-side">
-                  <Pill>{alert.state}</Pill>
-                  <span className="row-figure num">
-                    {alert.count} <span className="muted">vs {alert.threshold}</span>
-                  </span>
-                  <span className="row-meta">{alert.officer}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+        <Panel title="Referred and attended, by week" eyebrow="Last 8 weeks, synthetic">
+          <AreaChart width={440} values={weeklyTrend.referred} compare={weeklyTrend.attended} labels={weeklyTrend.weeks} label="Referrals made and attended each week" />
+          <div className="legend">
+            <span className="legend-item">
+              <span className="legend-swatch band" /> Referred
+            </span>
+            <span className="legend-item">
+              <span className="legend-line" /> Attended
+            </span>
+          </div>
         </Panel>
       </div>
 
       <div className="grid grid-main">
-        <Panel
-          eyebrow="Sub-county risk"
-          title="Alert intensity by area"
-          aside={<span className="tag">{subCounties.length} sub-counties</span>}
-          footer={
-            <div className="legend">
-              {(['low', 'moderate', 'high', 'critical'] as const).map((level) => (
-                <span key={level} className="legend-item">
-                  <span className={`legend-swatch tone-${toneOf(level)}`} />
-                  {level[0].toUpperCase() + level.slice(1)}
-                </span>
-              ))}
-              <span className="legend-note">
-                Risk index 0–100 from weekly IDSR thresholds. Trend vs prior month. Schematic layout, not to scale.
-              </span>
-            </div>
-          }
-        >
-          <div className="county-map" aria-label="Schematic map of Kisumu sub-counties">
-            {subCounties.map((county) => (
-              <CountyTile key={county.name} county={county} onOpen={onOpenSignals} />
-            ))}
-            <div className="map-lake" aria-hidden="true">
-              <span>Lake Victoria</span>
-              <small>Winam Gulf</small>
-            </div>
+        <Panel title="By settlement" eyebrow="Pilot informal settlements" flush>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Settlement</th>
+                  <th className="r">Households</th>
+                  <th className="r">Referrals</th>
+                  <th className="r">Seen in time</th>
+                  <th className="r">Median days</th>
+                  <th className="r">Missed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bySettlement.map((row) => {
+                  const days = median(referrals.filter((r) => r.settlement === row.name && attendedAt(r)).map((r) => (attendedAt(r)!.getTime() - new Date(r.createdAt).getTime()) / (24 * HOUR)))
+                  return (
+                    <tr key={row.name}>
+                      <th scope="row">{row.name}</th>
+                      <td className="r num">{row.profile.households.toLocaleString()}</td>
+                      <td className="r num">{row.count}</td>
+                      <td className="r num">{pct(row.mm.withinTimeframe)}</td>
+                      <td className="r num">{days === null ? '–' : days.toFixed(1)}</td>
+                      <td className="r num">{row.mm.missed || '–'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </Panel>
 
-        <div className="stack">
-          <Panel eyebrow="Synthetic dataset" title="Demo coverage">
-            <Facts
-              items={[
-                { label: 'Total facilities', value: facilitySnapshot.totalFacilities.toLocaleString() },
-                { label: 'Government-owned', value: facilitySnapshot.governmentOwned.toLocaleString() },
-                { label: 'Community units', value: facilitySnapshot.communityUnits.toLocaleString() },
-                { label: 'Health promoters', value: facilitySnapshot.chps.toLocaleString() },
-                { label: 'Households served', value: facilitySnapshot.households.toLocaleString() },
-              ]}
-            />
-          </Panel>
-
-          <Panel eyebrow="Data governance" title="AI labels and controls">
-            <ul className="checklist">
-              <li>Routine facility and community data remain in eCHIS, KenyaEMR and KHIS.</li>
-              <li>AI outputs are labelled, logged and require human confirmation before action.</li>
-              <li>Only aggregated, non-patient-level data are used in the demo.</li>
-            </ul>
-          </Panel>
-        </div>
+        <Panel title="Receiving facilities" eyebrow="How quickly referrals are picked up" flush>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Facility</th>
+                  <th className="r">Received</th>
+                  <th className="r">Accepted</th>
+                  <th className="r">Time to respond</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byFacility.map((row) => (
+                  <tr key={row.f.id}>
+                    <th scope="row">
+                      {row.f.short}
+                      <span className="cell-sub">Level {row.f.level}</span>
+                    </th>
+                    <td className="r num">{row.count}</td>
+                    <td className="r num">{pct(row.acceptRate)}</td>
+                    <td className="r num">{row.hours === null ? 'No response yet' : `${Math.round(row.hours)} h`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
       </div>
+
+      {role.id === 'county' ? (
+        <Panel
+          title="Weekly linkage brief"
+          eyebrow="AI summary of the figures above"
+          aside={
+            <button type="button" className="btn btn-sm" onClick={draftBrief} disabled={drafting}>
+              <Icon name="assistant" size={14} />
+              {drafting ? 'Drafting…' : brief ? 'Redraft' : 'Draft brief'}
+            </button>
+          }
+        >
+          {error ? (
+            <p className="form-error" role="alert">
+              Could not draft the brief: {error}
+            </p>
+          ) : null}
+          {brief ? (
+            <AiOutput title="Brief for the county mental health coordinator" requirement="Check against the figures before sharing">
+              {brief}
+            </AiOutput>
+          ) : (
+            <p className="muted">
+              Summarises where the pathway is losing people, using only the aggregated figures on this page. No individual
+              records are sent to the model.
+            </p>
+          )}
+        </Panel>
+      ) : null}
     </>
   )
 }
+

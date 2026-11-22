@@ -53,19 +53,19 @@ export function AnimatedCounter({ target, duration = 900, decimals = 0 }: Animat
 }
 
 const SOURCES = [
-  { name: 'eCHIS', status: 'Online' },
-  { name: 'KenyaEMR', status: 'Online' },
-  { name: 'KHIS', status: 'Syncing' },
-  { name: 'Groq Cloud AI', status: 'Online' },
+  { name: 'eCHIS', status: 'Online', note: 'Screening' },
+  { name: 'KenyaEMR', status: 'Online', note: 'Facility records' },
+  { name: 'County HIE', status: 'Planned', note: 'Exchange' },
+  { name: 'Groq Cloud AI', status: 'Online', note: 'Drafting' },
 ] as const
 
-/** Connection state of each upstream system. */
+/** Connection state of each system the referral pathway relies on. */
 export function SourceStatusList() {
   return (
     <ul className="sources">
       {SOURCES.map((src) => (
         <li key={src.name}>
-          <span className={src.status === 'Syncing' ? 'dot dot-info pulse' : 'dot dot-ok'} aria-hidden="true" />
+          <span className={src.status === 'Planned' ? 'dot dot-neutral' : 'dot dot-ok'} aria-hidden="true" />
           <span>{src.name}</span>
           <span className="sources-state">{src.status}</span>
         </li>

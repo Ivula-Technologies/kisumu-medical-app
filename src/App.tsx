@@ -1,76 +1,50 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
-import { overviewData } from './services/overviewData'
-import { diseaseSignals as initialDiseaseSignals, type DiseaseSignal } from './services/diseaseSignalsData'
-import { commodityForecasts, subCountyStock } from './services/commodityForecastData'
-import { sourceQuality, facilityReporting, dataQualityIssues, facilitiesNotReporting } from './services/dataQualityData'
-import { pilotIndicators, pilotMESummary, subCountyPilotPerformance } from './services/pilotMEData'
-import { dataSources, rolePermissions, accessLog, governanceNotes } from './services/dataGovernanceData'
-import { coverageGaps as initialCoverageGaps, coverageIndicators, subCountyCoverage, type CoverageGap, type GapStatus } from './services/serviceCoverageData'
+import { facilities, facilityById, initialEscalations, initialReferrals, type Escalation, type EscalationStatus } from './services/referralData'
+import { dueAt, linkageMetrics, missingFields, sla, type Referral } from './services/referralProtocol'
+import { actorLabel, allowedActions, applyAction, type ReferralAction } from './services/referralActions'
+import { ROLES, notificationsFor, visibleReferrals, type RoleId } from './services/roles'
+import { accessLog, controls, roleAccess } from './services/governanceData'
+import { followUpTaskCount } from './services/followUp'
 import { getGroqModel } from './services/groqService'
 import { downloadCsv, type CsvRow } from './utils/csv'
+import { formatDateTime } from './utils/time'
 import { AiCopilotDrawer } from './components/AiCopilotDrawer'
 import { AiSettingsModal } from './components/AiSettingsModal'
 import { LandingPage } from './components/LandingPage'
 import { RealTimeClock, SourceStatusList } from './components/RealtimeWidgets'
-import { Icon, type IconName } from './components/ui'
+import { Dot, Icon, type IconName } from './components/ui'
 import { OverviewPage } from './pages/OverviewPage'
-import { DiseaseSignalsPage } from './pages/DiseaseSignalsPage'
-import { CommodityForecastPage, type ApprovalStatus } from './pages/CommodityForecastPage'
-import { ServiceCoveragePage } from './pages/ServiceCoveragePage'
-import { DataQualityPage } from './pages/DataQualityPage'
+import { EscalationsPage } from './pages/EscalationsPage'
+import { NewReferralPage } from './pages/NewReferralPage'
+import { ReferralsPage } from './pages/ReferralsPage'
+import { FollowUpPage } from './pages/FollowUpPage'
+import { DirectoryPage } from './pages/DirectoryPage'
 import { PilotMEPage } from './pages/PilotMEPage'
 import { GovernancePage } from './pages/GovernancePage'
 
-const TABS = ['Overview', 'Disease Signals', 'Commodity Forecast', 'Service Coverage', 'Data Quality', 'Pilot M&E', 'Data & Governance'] as const
+const TABS = ['Overview', 'Escalations', 'New referral', 'Referrals', 'Follow-up', 'Directory', 'Pilot M&E', 'Data & Governance'] as const
 type Tab = (typeof TABS)[number]
 
 const TAB_META: Record<Tab, { icon: IconName; group: string; lede: string }> = {
-  Overview: {
-    icon: 'overview',
-    group: 'Surveillance',
-    lede: 'This week across 261 facilities and 7 sub-counties. AI-generated signals support epidemiological verification; they do not replace it.',
-  },
-  'Disease Signals': {
-    icon: 'signals',
-    group: 'Surveillance',
-    lede: 'Unusual weekly case counts, flagged from a rolling baseline. Each signal needs verification by a surveillance officer before any response.',
-  },
-  'Commodity Forecast': {
-    icon: 'commodity',
-    group: 'Surveillance',
-    lede: 'Three-month demand and stockout risk for essential medicines. Redistribution takes effect only after a pharmacist approves it.',
-  },
-  'Service Coverage': {
-    icon: 'coverage',
-    group: 'Surveillance',
-    lede: 'Where community and facility services fall short of target, from aggregated eCHIS and KHIS data. County teams decide where outreach goes.',
-  },
-  'Data Quality': {
-    icon: 'quality',
-    group: 'Assurance',
-    lede: 'Completeness, timeliness and validation of eCHIS, KenyaEMR and KHIS submissions. Facilities with failures are flagged for follow-up.',
-  },
-  'Pilot M&E': {
-    icon: 'pilot',
-    group: 'Assurance',
-    lede: 'Pilot indicators for weeks 35–42 of 2026, against a baseline from the pre-pilot period, weeks 1–34.',
-  },
-  'Data & Governance': {
-    icon: 'governance',
-    group: 'Assurance',
-    lede: "Access, provenance and controls shaped by Kenya's Data Protection Act (2019) and Digital Health Act (2023).",
-  },
+  Overview: { icon: 'overview', group: 'Referral and linkage', lede: 'How people are moving from community screening to care, and where they are getting lost.' },
+  Escalations: { icon: 'flag', group: 'Referral and linkage', lede: 'Suicide risk, psychosis and risk of harm go to a clinician by phone at once. They never enter the referral queue.' },
+  'New referral': { icon: 'plus', group: 'Referral and linkage', lede: 'Screen with approved tools. The rules set the urgency and suggest where to refer; you decide and send.' },
+  Referrals: { icon: 'route', group: 'Referral and linkage', lede: 'Every referral from sending to feedback, with who acts next and how long is left.' },
+  'Follow-up': { icon: 'list', group: 'Referral and linkage', lede: 'Missed appointments to trace, reminders to send and outcomes owed to referrers, so nobody is lost between steps.' },
+  Directory: { icon: 'coverage', group: 'Network', lede: 'Facilities that receive mental health referrals: what they offer, how full they are and how far they are from each settlement.' },
+  'Pilot M&E': { icon: 'pilot', group: 'Assurance', lede: 'Pilot indicators from the concept note. Most are calculated live from the referral records.' },
+  'Data & Governance': { icon: 'governance', group: 'Assurance', lede: "Who can see what, and the safeguards for sensitive mental health data under Kenya's Data Protection Act and Digital Health Act." },
 }
 
 const NAV_GROUPS: Array<{ label: string; tabs: Tab[] }> = [
-  { label: 'Surveillance', tabs: ['Overview', 'Disease Signals', 'Commodity Forecast', 'Service Coverage'] },
-  { label: 'Assurance', tabs: ['Data Quality', 'Pilot M&E', 'Data & Governance'] },
+  { label: 'Referral and linkage', tabs: ['Overview', 'Escalations', 'New referral', 'Referrals', 'Follow-up'] },
+  { label: 'Network', tabs: ['Directory'] },
+  { label: 'Assurance', tabs: ['Pilot M&E', 'Data & Governance'] },
 ]
 
 const isTab = (value: string): value is Tab => (TABS as readonly string[]).includes(value)
-
-const timestamp = () => new Date().toISOString().replace('T', ' ').slice(0, 16)
+const KEYS = { referrals: 'kisumu_mh_referrals_v1', escalations: 'kisumu_mh_escalations_v1', role: 'kisumu_mh_role' }
 
 function loadStored<T>(key: string, fallback: T): T {
   try {
@@ -95,183 +69,179 @@ function App() {
   )
   const [activeTab, setActiveTab] = useState<Tab>('Overview')
   const [isNavOpen, setIsNavOpen] = useState(false)
-
-  const [lastSync, setLastSync] = useState(timestamp)
-  const [isSyncing, setIsSyncing] = useState(false)
+  const [isBellOpen, setIsBellOpen] = useState(false)
+  const [roleId, setRoleId] = useState<RoleId>(() => loadStored<RoleId>(KEYS.role, 'county'))
+  const [referrals, setReferrals] = useState<Referral[]>(() => loadStored(KEYS.referrals, initialReferrals))
+  const [escalations, setEscalations] = useState<Escalation[]>(() => loadStored(KEYS.escalations, initialEscalations))
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [toast, setToast] = useState('')
+  const [now, setNow] = useState(() => new Date())
 
   const [isCopilotOpen, setIsCopilotOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [activeModel, setActiveModel] = useState(getGroqModel())
 
-  const [signals, setSignals] = useState<DiseaseSignal[]>(() =>
-    loadStored('kisumu_disease_signals', initialDiseaseSignals),
-  )
-  const [approvals, setApprovals] = useState<Record<string, ApprovalStatus>>(() =>
-    loadStored('kisumu_commodity_approvals', {}),
-  )
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(tick)
+  }, [])
 
-  const [gaps, setGaps] = useState<CoverageGap[]>(() => {
-    // Only the review state is stored, so the seeded figures stay current.
-    const saved = loadStored<Record<string, GapStatus>>('kisumu_coverage_gap_status', {})
-    return initialCoverageGaps.map((g) => ({ ...g, status: saved[g.id] ?? g.status }))
-  })
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(''), 5000)
+    return () => clearTimeout(t)
+  }, [toast])
 
-  const navCounts: Partial<Record<Tab, { count: number; label: string }>> = {
-    'Disease Signals': {
-      count: signals.filter((s) => s.status === 'Unverified' || s.status === 'Under investigation').length,
-      label: 'signals awaiting verification',
-    },
-    'Service Coverage': {
-      count: gaps.filter((g) => g.status === 'Unreviewed').length,
-      label: 'coverage gaps awaiting review',
+  const role = ROLES[roleId]
+  const visible = visibleReferrals(role, referrals)
+  const notices = notificationsFor(role, referrals, escalations, now)
+  const activeEscalations = escalations.filter((e) => e.status === 'Awaiting clinician' || e.status === 'Clinician on the line')
+
+  const navCounts: Partial<Record<Tab, { count: number; label: string; tone: 'critical' | 'high' }>> = {
+    Escalations: { count: activeEscalations.length, label: 'active emergency escalations', tone: 'critical' },
+    Referrals: { count: visible.filter((r) => allowedActions(role, r).length > 0).length, label: 'referrals needing your action', tone: 'high' },
+    'Follow-up': {
+      count: followUpTaskCount(visible, now),
+      label: 'follow-up tasks',
+      tone: 'high',
     },
   }
 
   const goTo = (tab: Tab) => {
     setActiveTab(tab)
     setIsNavOpen(false)
+    setIsBellOpen(false)
     window.scrollTo({ top: 0 })
   }
 
-  const enterDashboard = (target?: string) => {
-    if (target && isTab(target)) setActiveTab(target)
-    setViewMode('dashboard')
-    window.scrollTo({ top: 0 })
+  const openReferral = (id: string) => {
+    setSelectedId(id)
+    goTo('Referrals')
   }
 
-  const syncNow = () => {
-    setIsSyncing(true)
-    setTimeout(() => {
-      setLastSync(timestamp())
-      setIsSyncing(false)
-    }, 1200)
+  const switchRole = (id: RoleId) => {
+    setRoleId(id)
+    store(KEYS.role, id)
+    setSelectedId(null)
+    setIsBellOpen(false)
   }
 
-  const updateSignal = (disease: string, change: (signal: DiseaseSignal) => DiseaseSignal) => {
-    setSignals((prev) => {
-      const updated = prev.map((s) => (s.disease === disease ? change(s) : s))
-      store('kisumu_disease_signals', updated)
-      return updated
-    })
+  const saveReferrals = (next: Referral[]) => {
+    setReferrals(next)
+    store(KEYS.referrals, next)
   }
 
-  const changeSignalStatus = (disease: string, status: DiseaseSignal['status']) =>
-    updateSignal(disease, (s) => ({
-      ...s,
-      status,
-      auditTrail: [`${timestamp()} — Status updated to '${status}' by County Health Manager.`, ...s.auditTrail],
-    }))
-
-  const addSignalNote = (disease: string, note: string) =>
-    updateSignal(disease, (s) => ({
-      ...s,
-      notes: note,
-      auditTrail: [`${timestamp()} — Note: ${note} (Dr. Akinyi/County Health Manager)`, ...s.auditTrail],
-    }))
-
-  const changeApproval = (commodity: string, status: ApprovalStatus) => {
-    setApprovals((prev) => {
-      const updated = { ...prev, [commodity]: status }
-      store('kisumu_commodity_approvals', updated)
-      return updated
-    })
+  const act = (id: string, action: ReferralAction) => {
+    const current = referrals.find((r) => r.id === id)
+    if (!current) return
+    let updated: Referral
+    try {
+      updated = applyAction(current, action, role, new Date())
+    } catch (err: unknown) {
+      setToast(err instanceof Error ? err.message : String(err))
+      return
+    }
+    saveReferrals(referrals.map((r) => (r.id === id ? updated : r)))
+    const who = current.referredBy.id
+    const facility = facilityById[updated.toFacilityId]?.short ?? 'the facility'
+    const messages: Record<ReferralAction['type'], string> = {
+      accept: `${id} accepted. ${who} has been notified.`,
+      decline: `${id} declined. ${who} and the county coordinator have been notified.`,
+      schedule: `Appointment saved for ${id}. ${who} has been notified.`,
+      remind: `Reminder recorded for ${id}.`,
+      attended: `${id} marked attended. Feedback to ${who} is now due.`,
+      missed: `${id} marked missed. ${who} has been alerted to trace.`,
+      feedback: `Feedback sent to ${who}. ${id} is closed.`,
+      trace: `Tracing outcome recorded. ${facility} has been asked to rebook.`,
+      redirect: `${id} redirected to ${facility}, which has been notified.`,
+      chase: `Follow-up with ${facility} recorded for ${id}.`,
+    }
+    setToast(messages[action.type])
   }
 
-  const changeGapStatus = (id: string, status: GapStatus) => {
-    setGaps((prev) => {
-      const updated = prev.map((g) => (g.id === id ? { ...g, status } : g))
-      store('kisumu_coverage_gap_status', Object.fromEntries(updated.map((g) => [g.id, g.status])))
-      return updated
-    })
+  const createReferral = (r: Referral) => {
+    saveReferrals([r, ...referrals])
+    setToast(`${r.id} sent to ${facilityById[r.toFacilityId]?.name}, which has been notified.`)
+    openReferral(r.id)
   }
+
+  const saveEscalations = (next: Escalation[]) => {
+    setEscalations(next)
+    store(KEYS.escalations, next)
+  }
+
+  const escalate = (e: Escalation) => {
+    saveEscalations([e, ...escalations])
+    setToast(`Emergency ${e.id} recorded. Stay with the person while you call.`)
+    goTo('Escalations')
+  }
+
+  const advanceEscalation = (id: string, to: EscalationStatus, text: string) => {
+    const at = new Date().toISOString()
+    saveEscalations(
+      escalations.map((e) =>
+        e.id === id
+          ? {
+              ...e,
+              status: to,
+              respondedAt: e.respondedAt ?? (to === 'Clinician on the line' ? at : undefined),
+              responder: e.responder ?? (to === 'Clinician on the line' ? `${e.destination} on-call clinician` : undefined),
+              log: [...e.log, { at, text }],
+            }
+          : e,
+      ),
+    )
+  }
+
+  const resetDemo = () => {
+    try {
+      localStorage.removeItem(KEYS.referrals)
+      localStorage.removeItem(KEYS.escalations)
+    } catch {
+      // ignore
+    }
+    setReferrals(initialReferrals)
+    setEscalations(initialEscalations)
+    setSelectedId(null)
+    setToast('Demo data reset.')
+  }
+
+  const ids = referrals.map((r) => Number(r.id.replace(/\D/g, '')))
+  const clientIds = [...referrals.map((r) => r.client), ...escalations.map((e) => e.client)].map((c) => Number(c.replace(/\D/g, '')))
+  const nextReferralId = `REF-${Math.max(...ids) + 1}`
+  const nextClientId = `MH-${String(Math.max(...clientIds) + 1).padStart(4, '0')}`
+  const nextEscalationId = `ESC-${Math.max(...escalations.map((e) => Number(e.id.replace(/\D/g, '')))) + 1}`
 
   const exportCurrent = () => {
+    const referralRows: CsvRow[] = [
+      ['Referral', 'Client', 'Sex', 'Age band', 'Settlement', 'Community unit', 'Referred by', 'To facility', 'Service', 'Urgency', 'Status', 'Created', 'Due', 'Timeframe', 'Appointment', 'PHQ-9', 'PHQ-9 item 9', 'GAD-7', 'AUDIT-C', 'Consent', 'Missing fields'],
+      ...visible.map((r) => [
+        r.id, r.client, r.sex, r.ageBand, r.settlement, r.communityUnit, r.referredBy.id, facilityById[r.toFacilityId]?.name ?? r.toFacilityId, r.service, r.urgency, r.status,
+        formatDateTime(r.createdAt), formatDateTime(dueAt(r).toISOString()), sla(r, now).label, r.appointmentAt ? formatDateTime(r.appointmentAt) : '',
+        r.screening.phq9 ?? '', r.screening.phq9Item9 ?? '', r.screening.gad7 ?? '', r.screening.auditC ?? '', r.consentRecorded ? 'Yes' : 'No', missingFields(r).join('; '),
+      ]),
+    ]
+    const m = linkageMetrics(visible, now)
     const exports: Record<Tab, { name: string; rows: CsvRow[] }> = {
       Overview: {
-        name: 'kisumu-health-intelligence-overview',
-        rows: [
-          ['Section', 'Metric', 'Value'],
-          ['Overview', 'Facilities reporting this week', `${overviewData.metrics.reportingThisWeek}/${overviewData.metrics.totalFacilities}`],
-          ['Overview', 'Data completeness %', `${overviewData.metrics.completeness}%`],
-          ['Overview', 'Reporting timeliness %', `${overviewData.metrics.timeliness}%`],
-          ['Overview', 'Open alerts', overviewData.metrics.openAlerts],
-          ['Overview', 'Facilities at stockout risk', overviewData.metrics.stockoutRisk],
-          [],
-          ['Sub-county', 'Facilities', 'Alert level', 'Risk index', 'Trend'],
-          ...overviewData.subCounties.map((c) => [c.name, c.facilities, c.alertLevel, c.riskIndex, c.trend]),
-          [],
-          ['Alert ID', 'Title', 'Sub County', 'Disease', 'State', 'Officer', 'Count', 'Threshold'],
-          ...overviewData.latestAlerts.map((a) => [a.id, a.title, a.subCounty, a.disease, a.state, a.officer, a.count, a.threshold]),
-        ],
+        name: 'kisumu-mh-linkage-overview',
+        rows: [['Measure', 'Value'], ['Referrals', m.total], ['Open', m.open], ['Awaiting acceptance', m.awaitingAcceptance], ['Overdue', m.overdue], ['Missed', m.missed], ['Declined', m.declined], ['Seen within timeframe %', m.withinTimeframe?.toFixed(1) ?? ''], ['Feedback to referrer %', m.feedbackClosed?.toFixed(1) ?? ''], ['Median hours to attendance', m.medianHoursToAttendance?.toFixed(0) ?? ''], [], ['Stage', 'Count'], ...m.funnel.map((f) => [f.stage, f.count])],
       },
-      'Disease Signals': {
-        name: 'kisumu-disease-signals',
-        rows: [
-          ['Disease', 'Sub-county', 'Week', 'Cases', 'Expected min', 'Expected max', 'Baseline mean', 'z-score', 'Priority', 'Status', 'Officer', 'Why flagged', 'Latest note'],
-          ...signals.map((s) => [s.disease, s.subCounty, s.currentWeek, s.actual, s.expectedMin, s.expectedMax, s.baselineMean, s.zScore, s.level, s.status, s.assignedOfficer, s.whyFlagged, s.notes]),
-        ],
+      Escalations: {
+        name: 'kisumu-mh-escalations',
+        rows: [['Escalation', 'Client', 'Settlement', 'Trigger', 'Raised by', 'Raised', 'Responded', 'Destination', 'Status'], ...escalations.map((e) => [e.id, e.client, e.settlement, e.trigger, e.raisedBy, formatDateTime(e.raisedAt), e.respondedAt ? formatDateTime(e.respondedAt) : '', e.destination, e.status])],
       },
-      'Commodity Forecast': {
-        name: 'kisumu-commodity-forecast',
-        rows: [
-          ['Commodity', 'Unit', 'Stock on Hand', 'Monthly Consumption', '3-Month Forecast', 'Confidence Min', 'Confidence Max', 'Months of Stock', 'Risk Status', 'Facilities at Risk', 'Redistribution Suggestion', 'Approval'],
-          ...commodityForecasts.map((f) => [f.commodity, f.unit, f.stockOnHand, f.monthlyConsumption, f.forecast3Month, f.confidenceBand.min, f.confidenceBand.max, f.monthsOfStock.toFixed(1), f.riskStatus, f.facilitiesAtRisk, f.redistributionSuggestion, approvals[f.commodity] ?? 'Pending']),
-          [],
-          ['Sub-county', 'Commodity', 'Stock on Hand', 'Months of Stock', 'Risk Status'],
-          ...subCountyStock.map((s) => [s.subCounty, s.commodity, s.stockOnHand, s.monthsOfStock.toFixed(1), s.riskStatus]),
-        ],
+      'New referral': { name: 'kisumu-mh-referrals', rows: referralRows },
+      Referrals: { name: 'kisumu-mh-referrals', rows: referralRows },
+      'Follow-up': { name: 'kisumu-mh-referrals', rows: referralRows },
+      Directory: {
+        name: 'kisumu-mh-referral-directory',
+        rows: [['Facility', 'Level', 'Services', 'Open slots this week', 'Median wait (days)', 'Active in pilot'], ...facilities.map((f) => [f.name, f.level, f.services.join('; '), f.slotsThisWeek, f.medianWaitDays, f.activeInPilot ? 'Yes' : 'No'])],
       },
-      'Service Coverage': {
-        name: 'kisumu-service-coverage',
-        rows: [
-          ['Sub-county', 'Households', 'Community Units', 'CHPs', ...coverageIndicators.map((i) => `${i.name} % (target ${i.target})`)],
-          ...subCountyCoverage.map((sc) => [sc.subCounty, sc.households, sc.communityUnits, sc.chps, ...coverageIndicators.map((i) => sc.coverage[i.id])]),
-          [],
-          ['Gap ID', 'Sub-county', 'Area', 'Indicator', 'Coverage %', 'Target %', 'Community Units', 'Households', 'Why Flagged', 'Suggested Action', 'Status'],
-          ...gaps.map((g) => [g.id, g.subCounty, g.area, coverageIndicators.find((i) => i.id === g.indicator)?.name ?? g.indicator, g.coverage, coverageIndicators.find((i) => i.id === g.indicator)?.target ?? '', g.communityUnits, g.households, g.whyFlagged, g.suggestedAction, g.status]),
-        ],
-      },
-      'Data Quality': {
-        name: 'kisumu-data-quality',
-        rows: [
-          ['Source', 'Facilities Connected', 'Facilities Reporting', 'Completeness %', 'Timeliness %', 'Last Sync', 'Validation Errors'],
-          ...sourceQuality.map((s) => [s.source, s.facilitiesConnected, s.facilitiesReporting, s.completeness, s.timeliness, s.lastSync, s.validationErrors]),
-          [],
-          ['Facility', 'Sub-county', 'Source', 'Last Report', 'Completeness %', 'Timeliness %', 'Validation Status', 'Issues Count'],
-          ...facilityReporting.map((f) => [f.facility, f.subCounty, f.source, f.lastReport, f.completeness, f.timeliness, f.validationStatus, f.issuesCount]),
-          [],
-          ['Facility', 'Sub-county', 'Source', 'Issue', 'Severity', 'Days Since Report'],
-          ...dataQualityIssues.map((i) => [i.facility, i.subCounty, i.source, i.issue, i.severity, i.daysSinceReport]),
-          [],
-          ['Facility', 'Sub-county', 'Source', 'Days Since Last Report'],
-          ...facilitiesNotReporting.map((f) => [f.facility, f.subCounty, f.source, f.daysSinceLastReport]),
-        ],
-      },
-      'Pilot M&E': {
-        name: 'kisumu-pilot-me',
-        rows: [
-          ['Indicator ID', 'Name', 'Current Value', 'Baseline Value', 'Target Value', 'Unit', 'Trend', 'Status'],
-          ...pilotIndicators.map((i) => [i.id, i.name, i.currentValue, i.baselineValue, i.targetValue, i.unit, i.trend, i.status]),
-          [],
-          ['Sub-county', 'Timeliness %', 'Completeness %', 'Verification Time (h)', 'MAPE %', 'Active Users', 'Signal Action %', 'Stockout Prevention %', 'Coverage Gap Response %'],
-          ...subCountyPilotPerformance.map((s) => [s.subCounty, s.timeliness, s.completeness, s.verificationTime, s.mape, s.activeUsers, s.signalActionRate, s.stockoutPrevention, s.coverageGapResponse]),
-        ],
-      },
+      'Pilot M&E': { name: 'kisumu-mh-referrals', rows: referralRows },
       'Data & Governance': {
-        name: 'kisumu-data-governance',
-        rows: [
-          ['Source', 'Type', 'Status', 'Facilities Covered', 'Records Synced (24h)', 'Last Sync', 'Sync Frequency'],
-          ...dataSources.map((s) => [s.name, s.type, s.status, s.facilitiesCovered, s.recordsSynced, s.lastSync, s.syncFrequency]),
-          [],
-          ['Role', 'Description', 'User Count', 'Last Access', 'Permissions'],
-          ...rolePermissions.map((r) => [r.role, r.description, r.userCount, r.lastAccess, r.permissions.join('; ')]),
-          [],
-          ['Timestamp', 'User', 'Role', 'Action', 'Resource', 'IP', 'Status'],
-          ...accessLog.map((a) => [a.timestamp, a.user, a.role, a.action, a.resource, a.ip, a.status]),
-          [],
-          ['Category', 'Title', 'Description', 'Status', 'Reference'],
-          ...governanceNotes.map((g) => [g.category, g.title, g.description, g.status, g.reference]),
-        ],
+        name: 'kisumu-mh-governance',
+        rows: [['Control', 'Area', 'Status', 'Reference', 'Detail'], ...controls.map((c) => [c.control, c.area, c.status, c.reference, c.detail]), [], ['Role', 'Sees', 'Cannot'], ...roleAccess.map((r) => [r.role, r.sees, r.cannot]), [], ['Time', 'User', 'Action', 'Record'], ...accessLog.map((a) => [formatDateTime(a.at), a.user, a.action, a.record])],
       },
     }
     const { name, rows } = exports[activeTab]
@@ -284,28 +254,35 @@ function App() {
         isOpen={isCopilotOpen}
         onClose={() => setIsCopilotOpen(false)}
         activeTab={activeTab}
-        contextSummary={
-          viewMode === 'landing'
-            ? 'Kisumu Health Intelligence Public Portal & Operations. 261 health facilities across 7 sub-counties.'
-            : `Kisumu Health Intelligence operations dashboard. Tab: ${activeTab}. Facilities: 261, Sub-counties: 7.`
-        }
+        contextSummary={`Mental health referral and linkage pilot, Kisumu informal settlements. Viewing as ${role.label}. Tab: ${activeTab}. Aggregated pathway: ${linkageMetrics(visible, now).funnel.map((f) => `${f.stage} ${f.count}`).join(', ')}.`}
         onOpenSettings={() => {
           setIsCopilotOpen(false)
           setIsSettingsOpen(true)
         }}
       />
-      <AiSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        onSaved={() => setActiveModel(getGroqModel())}
-      />
+      <AiSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} onSaved={() => setActiveModel(getGroqModel())} />
+      {toast ? (
+        <div className="toast" role="status">
+          <Icon name="check" size={16} />
+          <span>{toast}</span>
+        </div>
+      ) : null}
     </>
   )
 
   if (viewMode === 'landing') {
     return (
       <>
-        <LandingPage onEnterDashboard={enterDashboard} onOpenCopilot={() => setIsCopilotOpen(true)} />
+        <LandingPage
+          referrals={referrals}
+          now={now}
+          onEnterDashboard={(target?: string) => {
+            if (target && isTab(target)) setActiveTab(target)
+            setViewMode('dashboard')
+            window.scrollTo({ top: 0 })
+          }}
+          onOpenCopilot={() => setIsCopilotOpen(true)}
+        />
         {overlays}
       </>
     )
@@ -321,11 +298,11 @@ function App() {
       <aside className={isNavOpen ? 'sidebar open' : 'sidebar'}>
         <div className="brand">
           <span className="crest" aria-hidden="true">
-            KH
+            KM
           </span>
           <div>
-            <p className="brand-name">Kisumu Health Intelligence</p>
-            <p className="brand-sub">County Department of Health</p>
+            <p className="brand-name">Kisumu Mental Health Linkage</p>
+            <p className="brand-sub">County Department of Health · ACDO</p>
           </div>
         </div>
 
@@ -333,59 +310,58 @@ function App() {
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="nav-group">
               <p className="nav-label">{group.label}</p>
-              {group.tabs.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  className={tab === activeTab ? 'nav-item active' : 'nav-item'}
-                  aria-current={tab === activeTab ? 'page' : undefined}
-                  onClick={() => goTo(tab)}
-                >
-                  <Icon name={TAB_META[tab].icon} />
-                  <span>{tab}</span>
-                  {navCounts[tab]?.count ? (
-                    <span className="nav-count" title={`${navCounts[tab].count} ${navCounts[tab].label}`}>
-                      {navCounts[tab].count}
-                    </span>
-                  ) : null}
-                </button>
-              ))}
+              {group.tabs.map((tab) => {
+                const c = navCounts[tab]
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    className={tab === activeTab ? 'nav-item active' : 'nav-item'}
+                    aria-current={tab === activeTab ? 'page' : undefined}
+                    onClick={() => goTo(tab)}
+                  >
+                    <Icon name={TAB_META[tab].icon} />
+                    <span>{tab}</span>
+                    {c?.count ? (
+                      <span className={`nav-count ${c.tone}`} title={`${c.count} ${c.label}`}>
+                        {c.count}
+                      </span>
+                    ) : null}
+                  </button>
+                )
+              })}
             </div>
           ))}
         </nav>
 
         <div className="sidebar-foot">
           <div className="sidebar-block">
-            <p className="nav-label">Data sources</p>
+            <p className="nav-label">Connected systems</p>
             <SourceStatusList />
           </div>
-
           <div className="account">
             <span className="avatar" aria-hidden="true">
-              CM
+              {role.initials}
             </span>
             <div>
-              <p className="account-role">County Health Manager</p>
-              <p className="account-scope">All 7 sub-counties · 261 facilities</p>
+              <p className="account-role">{role.short}</p>
+              <p className="account-scope">{role.scope}</p>
             </div>
           </div>
-
+          <button type="button" className="sidebar-link" onClick={resetDemo}>
+            <Icon name="sync" size={16} />
+            Reset demo data
+          </button>
           <button type="button" className="sidebar-link" onClick={() => setViewMode('landing')}>
             <Icon name="home" size={16} />
-            Public portal
+            Public page
           </button>
         </div>
       </aside>
 
       <div className="workspace">
         <header className="topbar">
-          <button
-            type="button"
-            className="icon-btn nav-toggle"
-            onClick={() => setIsNavOpen((v) => !v)}
-            aria-label="Toggle navigation"
-            aria-expanded={isNavOpen}
-          >
+          <button type="button" className="icon-btn nav-toggle" onClick={() => setIsNavOpen((v) => !v)} aria-label="Toggle navigation" aria-expanded={isNavOpen}>
             <Icon name={isNavOpen ? 'close' : 'menu'} />
           </button>
 
@@ -396,29 +372,71 @@ function App() {
           </p>
 
           <div className="topbar-actions">
-            <span className="sync-chip" aria-live="polite" title="Last sync of eCHIS, KenyaEMR and KHIS">
-              <span className={isSyncing ? 'dot dot-info pulse' : 'dot dot-ok'} aria-hidden="true" />
-              {isSyncing ? 'Syncing…' : `Synced ${lastSync.slice(11)}`}
-            </span>
-            <button type="button" className="btn" onClick={syncNow} disabled={isSyncing} title="Sync eCHIS, KenyaEMR and KHIS">
-              <Icon name="sync" size={16} />
-              <span className="btn-label">Sync</span>
-            </button>
+            <label className="role-switch" title="Demo: switch between the people in a referral">
+              <Icon name="user" size={16} />
+              <span className="sr-only">Viewing as</span>
+              <select id="role-switch" value={roleId} onChange={(e) => switchRole(e.target.value as RoleId)}>
+                {Object.values(ROLES).map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.short}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div className="bell-wrap">
+              <button
+                type="button"
+                className="icon-btn bell"
+                onClick={() => setIsBellOpen((v) => !v)}
+                aria-label={`${notices.length} notifications`}
+                aria-expanded={isBellOpen}
+              >
+                <Icon name="bell" />
+                {notices.length ? <span className={`bell-count ${notices[0].tone === 'critical' ? 'critical' : ''}`}>{notices.length}</span> : null}
+              </button>
+              {isBellOpen ? (
+                <>
+                  <div className="popover-scrim" onClick={() => setIsBellOpen(false)} />
+                  <div className="popover" role="dialog" aria-label="Notifications">
+                    <p className="popover-head">
+                      Notifications for {role.short}
+                      <span className="muted">{notices.length}</span>
+                    </p>
+                    {notices.length ? (
+                      <ul className="popover-list">
+                        {notices.map((n) => (
+                          <li key={n.id}>
+                            <button
+                              type="button"
+                              onClick={() => (n.referralId ? openReferral(n.referralId) : goTo('Escalations'))}
+                            >
+                              <Dot tone={n.tone} />
+                              <span>
+                                <strong>{n.title}</strong>
+                                <span className="muted">{n.detail}</span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="empty-state">You are up to date.</p>
+                    )}
+                  </div>
+                </>
+              ) : null}
+            </div>
+
             <button type="button" className="btn" onClick={exportCurrent} title={`Export ${activeTab} as CSV`}>
               <Icon name="download" size={16} />
-              <span className="btn-label">Export CSV</span>
+              <span className="btn-label">Export</span>
             </button>
             <button type="button" className="btn btn-primary" onClick={() => setIsCopilotOpen(true)}>
               <Icon name="assistant" size={16} />
               <span className="btn-label">Ask copilot</span>
             </button>
-            <button
-              type="button"
-              className="icon-btn"
-              onClick={() => setIsSettingsOpen(true)}
-              title={`AI settings — model ${modelLabel}`}
-              aria-label="AI settings"
-            >
+            <button type="button" className="icon-btn" onClick={() => setIsSettingsOpen(true)} title={`AI settings — model ${modelLabel}`} aria-label="AI settings">
               <Icon name="settings" />
             </button>
           </div>
@@ -431,40 +449,39 @@ function App() {
               <p className="page-lede">{meta.lede}</p>
             </div>
             <div className="page-tags">
-              <span className="tag">Epi week 42</span>
+              <span className="tag">Viewing as {role.short}</span>
               <RealTimeClock />
             </div>
           </header>
 
           {activeTab === 'Overview' ? (
-            <OverviewPage onOpenSignals={() => goTo('Disease Signals')} />
-          ) : activeTab === 'Disease Signals' ? (
-            <DiseaseSignalsPage
-              signals={signals}
-              onStatusChange={changeSignalStatus}
-              onAddNote={addSignalNote}
-              onAskCopilot={() => setIsCopilotOpen(true)}
+            <OverviewPage role={role} referrals={visible} escalations={escalations} now={now} onOpenEscalations={() => goTo('Escalations')} />
+          ) : activeTab === 'Escalations' ? (
+            <EscalationsPage escalations={escalations} now={now} actor={actorLabel(role)} onAdvance={advanceEscalation} />
+          ) : activeTab === 'New referral' ? (
+            <NewReferralPage
+              role={role}
+              now={now}
+              nextReferralId={nextReferralId}
+              nextClientId={nextClientId}
+              nextEscalationId={nextEscalationId}
+              onSwitchRole={switchRole}
+              onCreate={createReferral}
+              onEscalate={escalate}
             />
-          ) : activeTab === 'Commodity Forecast' ? (
-            <CommodityForecastPage
-              approvals={approvals}
-              onApprovalChange={changeApproval}
-              onAskCopilot={() => setIsCopilotOpen(true)}
-              lastSync={lastSync}
-            />
-          ) : activeTab === 'Service Coverage' ? (
-            <ServiceCoveragePage gaps={gaps} onStatusChange={changeGapStatus} onAskCopilot={() => setIsCopilotOpen(true)} />
-          ) : activeTab === 'Data Quality' ? (
-            <DataQualityPage lastSync={lastSync} />
+          ) : activeTab === 'Referrals' ? (
+            <ReferralsPage role={role} referrals={visible} now={now} selectedId={selectedId} onSelect={setSelectedId} onAction={act} />
+          ) : activeTab === 'Follow-up' ? (
+            <FollowUpPage role={role} referrals={visible} now={now} onOpen={openReferral} />
+          ) : activeTab === 'Directory' ? (
+            <DirectoryPage referrals={referrals} />
           ) : activeTab === 'Pilot M&E' ? (
-            <PilotMEPage />
+            <PilotMEPage referrals={referrals} now={now} />
           ) : (
-            <GovernancePage lastSync={lastSync} />
+            <GovernancePage />
           )}
 
-          <p className="page-foot">
-            Synthetic demo data. Aggregated figures only, with no patient-level identifiers. {pilotMESummary.reportingPeriod}.
-          </p>
+          <p className="page-foot">Synthetic demo data. Every person is fictional and identified only by a pseudonymous ID. Facility details are illustrative.</p>
         </main>
       </div>
 

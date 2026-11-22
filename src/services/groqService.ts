@@ -1,4 +1,4 @@
-// Groq Cloud AI Service for Kisumu Health Intelligence
+// Groq Cloud AI service for the Kisumu mental health referral and linkage tool
 // Supports OpenAI GPT-OSS-120B / GPT-OSS-20B via Groq Cloud
 
 export const DEFAULT_GROQ_KEY = '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';
@@ -127,13 +127,14 @@ export async function testGroqConnection(): Promise<{ ok: boolean; latencyMs: nu
 }
 
 const KISUMU_SYSTEM_CONTEXT = `
-You are the Kisumu Health Intelligence AI Decision-Support Copilot, deployed for the County Department of Health, Kisumu County, Kenya.
-Key principles:
-1. Support, do not replace, human clinical and epidemiological verification.
-2. In accordance with Kenya's Data Protection Act (2019) and Digital Health Act (2023), operate on aggregated non-patient-level data only.
-3. Reference Kisumu's 7 sub-counties when relevant: Kisumu Central, Kisumu East, Kisumu West, Seme, Nyakach, Nyando, and Muhoroni.
-4. Align clinical recommendations with Kenya Ministry of Health (MOH) guidelines, IDSR (Integrated Disease Surveillance and Response), and KEMSA supply protocols.
-5. Provide clear, professional, actionable public health and supply chain insights with bullet points and bold highlights.
+You are the decision-support assistant for a mental health referral and linkage pilot run by the Kisumu County Department of Health, Kenya, in the informal settlements of Obunga, Nyalenda A and B, Manyatta A and B, Manyatta Arabs, Kaloleni, Kondele and Bandani.
+Rules you must follow:
+1. You support health workers. You never diagnose, prescribe or decide a referral. Screening results are not diagnoses; say "screened positive", never "has depression".
+2. You never handle emergencies. If anything suggests suicidal intent, psychosis, risk of harm or a medical emergency, tell the user to stop and escalate to the on-call clinician by phone now, then say nothing more about it.
+3. You only see pseudonymous IDs and aggregated or de-identified data. Never ask for names, phone numbers or other identifiers.
+4. Follow Kenya's National Clinical Guidelines for Management of Common Mental Disorders (2024), WHO mhGAP and the county referral protocol. If you are unsure what a guideline says, say so rather than guessing.
+5. Use only the facts you are given. Do not invent results, history or services.
+6. Write plainly and briefly, with short headings and bullet points.
 `;
 
 export async function askHealthCopilot(
@@ -153,110 +154,62 @@ export async function askHealthCopilot(
   return callGroqChat(messages, { temperature: 0.3, max_tokens: 1000 });
 }
 
-export async function generateLiveDiseaseAnalysis(params: {
-  disease: string;
-  subCounty: string;
-  currentWeek: string;
-  actual: number;
-  expectedMin: number;
-  expectedMax: number;
-  zScore: number;
-  whyFlagged: string;
+export interface ReferralBriefInput {
+  referralId: string;
+  client: string;
+  ageBand: string;
+  sex: string;
+  settlement: string;
+  urgency: string;
+  service: string;
+  destination: string;
+  scores: string[];
+  concerns: string[];
+  context: string[];
   status: string;
-}): Promise<string> {
-  const prompt = `Perform an urgent epidemiological decision-support assessment for the following signal in Kisumu County:
-- Disease: ${params.disease}
-- Sub-County: ${params.subCounty}
-- Reporting Period: ${params.currentWeek}
-- Actual Reported Cases: ${params.actual}
-- Rolling Baseline Expected Range: ${params.expectedMin} - ${params.expectedMax} cases
-- Standard Deviation Z-Score: ${params.zScore}
-- Flag Reason: ${params.whyFlagged}
-- Current Investigation Status: ${params.status}
+}
 
-Please provide:
-1. **Epidemiological Risk Evaluation**: Severity assessment and likely transmission drivers in ${params.subCounty} (e.g. seasonal rains, flood-prone lowlands in Nyando/Kadibo, water sources, community gathering).
-2. **Immediate Surveillance Actions**: 3-4 specific IDSR steps for the Sub-County Disease Surveillance Coordinator (e.g., active case finding by CHPs, laboratory confirmation swabs/samples, line listing).
-3. **Clinical & Case Management Guidance**: Essential supplies needed (e.g. ORS, Zinc, Cholera treatment kits, AL, RDTs) and case triage instructions under Kenya MOH protocols.
-4. **Human Action Checklist**: Specific verification checkboxes for the County Health Manager before escalating to County Epidemic Response Committee.`;
+/** Drafts a structured referral note for the receiving clinician from de-identified fields. */
+export async function generateReferralNote(r: ReferralBriefInput): Promise<string> {
+  const prompt = `Draft a referral note for the receiving clinician. Use only these de-identified fields:
+- Referral: ${r.referralId}, client ${r.client}, ${r.sex}, age ${r.ageBand}, ${r.settlement}
+- Urgency: ${r.urgency}. Service requested: ${r.service} at ${r.destination}
+- Screening results: ${r.scores.join('; ') || 'none recorded'}
+- Concerns reported to the CHP: ${r.concerns.join(', ') || 'none recorded'}
+- Context: ${r.context.join(', ') || 'none recorded'}
+- Current status: ${r.status}
+
+Structure the note as:
+1. **Reason for referral**: two sentences, stating screening results as screening results, not diagnoses.
+2. **Points to assess**: what the clinician may want to explore, in line with mhGAP, including co-occurring risks.
+3. **Information the referrer needs back**: what feedback would help the CHP support follow-up at home.
+End with: "AI-drafted from screening data. To be checked and edited by the referring health worker before sending."`;
 
   return callGroqChat(
     [
       { role: 'system', content: KISUMU_SYSTEM_CONTEXT },
       { role: 'user', content: prompt },
     ],
-    { temperature: 0.2, max_tokens: 1200 }
+    { temperature: 0.2, max_tokens: 700 }
   );
 }
 
-export async function generateSupplyOptimization(commodity: {
-  commodity: string;
-  unit: string;
-  stockOnHand: number;
-  monthlyConsumption: number;
-  forecast3Month: number;
-  monthsOfStock: number;
-  riskStatus: string;
-  facilitiesAtRisk: number;
-  redistributionSuggestion: string;
-}): Promise<string> {
-  const prompt = `Perform a supply chain redistribution and stockout mitigation assessment for essential medicines in Kisumu County:
-- Commodity: ${commodity.commodity} (${commodity.unit})
-- Stock on Hand: ${commodity.stockOnHand.toLocaleString()}
-- Average Monthly Consumption: ${commodity.monthlyConsumption.toLocaleString()}
-- 3-Month Demand Forecast: ${commodity.forecast3Month.toLocaleString()}
-- Current Months of Stock (MOS): ${commodity.monthsOfStock.toFixed(1)} months
-- Current Risk Classification: ${commodity.riskStatus}
-- Facilities at Immediate Stockout Risk: ${commodity.facilitiesAtRisk}
-- Automated Suggestion: ${commodity.redistributionSuggestion}
+/** Summarises aggregated pathway figures for the county mental health coordinator. */
+export async function generateLinkageBrief(figures: string[]): Promise<string> {
+  const prompt = `Write a short weekly brief for the county mental health coordinator about the referral and linkage pathway. Use only these aggregated figures:
+${figures.map((f) => `- ${f}`).join('\n')}
 
-Provide a structured Decision-Support brief:
-1. **Critical Vulnerability Assessment**: Impact on facility service delivery and patient morbidity if stock reaches zero.
-2. **Inter-Facility Redistribution Plan**: Specific transfer strategy (from surplus facilities in Kisumu Central/East to deficit rural/sub-county health centres).
-3. **KEMSA Emergency Order Recommendation**: Quantity and priority tier for buffer replenishment.
-4. **Officer Sign-off Requirement**: Clear disclaimer that this redistribution requires County Pharmacist human authorization.`;
+Structure it as:
+1. **Where the pathway is losing people**: the two or three biggest drop-off points, with the numbers.
+2. **Settlements or facilities to follow up**: which ones, and why.
+3. **Suggested actions for this week**: practical steps for facility focal persons and CHP supervisors.
+Keep it under 200 words. Do not speculate beyond the figures.`;
 
   return callGroqChat(
     [
       { role: 'system', content: KISUMU_SYSTEM_CONTEXT },
       { role: 'user', content: prompt },
     ],
-    { temperature: 0.2, max_tokens: 1000 }
-  );
-}
-
-export async function generateCoverageGapBrief(gap: {
-  indicator: string;
-  subCounty: string;
-  area: string;
-  coverage: number;
-  target: number;
-  recent: number[];
-  communityUnits: number;
-  households: number;
-  whyFlagged: string;
-}): Promise<string> {
-  const prompt = `Prepare an outreach planning brief for a service coverage gap in Kisumu County. Use only the aggregated figures below and do not invent facts:
-- Indicator: ${gap.indicator}
-- Location: ${gap.area}, ${gap.subCounty} sub-county
-- Current coverage: ${gap.coverage}% (target ${gap.target}%)
-- Last three months: ${gap.recent.join('%, ')}%
-- Community units affected: ${gap.communityUnits}
-- Households in those units: ${gap.households.toLocaleString()}
-- Why flagged: ${gap.whyFlagged}
-
-Provide a structured Decision-Support brief:
-1. **Gap Summary**: What the numbers show, in plain language.
-2. **Likely Contributing Factors to Verify**: Hypotheses for the sub-county team to check, clearly labelled as unverified.
-3. **Outreach Options**: Practical actions for Community Health Promoters and the nearest facilities.
-4. **What to Monitor**: Which figures should move, and by when, if outreach works.
-5. **Sign-off Requirement**: Clear statement that the sub-county health management team must approve any outreach plan.`;
-
-  return callGroqChat(
-    [
-      { role: 'system', content: KISUMU_SYSTEM_CONTEXT },
-      { role: 'user', content: prompt },
-    ],
-    { temperature: 0.2, max_tokens: 1000 }
+    { temperature: 0.2, max_tokens: 600 }
   );
 }

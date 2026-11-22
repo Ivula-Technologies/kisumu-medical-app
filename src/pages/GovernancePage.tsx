@@ -1,207 +1,123 @@
 import { useState } from 'react'
-import {
-  accessLog,
-  dataGovernanceSummary,
-  dataSources,
-  governanceNotes,
-  rolePermissions,
-} from '../services/dataGovernanceData'
-import { AnimatedCounter } from '../components/RealtimeWidgets'
+import { accessLog, controls, roleAccess } from '../services/governanceData'
 import { KpiStrip, Panel, Pill } from '../components/ui'
+import { formatDateTime } from '../utils/time'
 
-export function GovernancePage({ lastSync }: { lastSync: string }) {
-  const summary = dataGovernanceSummary
+export function GovernancePage() {
   const [showAllLog, setShowAllLog] = useState(false)
-  const logRows = showAllLog ? accessLog : accessLog.slice(0, 5)
-  const totalUsers = rolePermissions.reduce((sum, r) => sum + r.userCount, 0)
+  const rows = showAllLog ? accessLog : accessLog.slice(0, 5)
+  const count = (s: string) => controls.filter((c) => c.status === s).length
 
   return (
     <>
       <KpiStrip
-        label="Governance overview"
+        label="Governance summary"
         items={[
-          {
-            label: 'Compliance score',
-            value: <AnimatedCounter target={summary.complianceScore} />,
-            unit: '%',
-            meter: { value: summary.complianceScore, tone: summary.complianceScore >= 90 ? 'ok' : 'moderate' },
-            note: 'Target 90% or higher',
-            detail: `Next review ${summary.nextReview}`,
-          },
-          {
-            label: 'Connected sources',
-            value: dataSources.length,
-            meter: { value: 100, tone: 'ok' },
-            note: 'All syncing normally',
-            detail: <span className="mono">{lastSync}</span>,
-          },
-          {
-            label: 'Active roles',
-            value: rolePermissions.length,
-            note: `${totalUsers} users in total`,
-            detail: 'Role-based access enforced',
-          },
-          {
-            label: 'Register entries',
-            value: governanceNotes.length,
-            meter: { value: summary.notesImplemented, max: governanceNotes.length, tone: 'brand' },
-            note: `${summary.notesImplemented} implemented`,
-            detail: `${summary.criticalGaps} critical gaps open`,
-          },
-          {
-            label: 'Access events, 24h',
-            value: accessLog.length,
-            meter: { value: 100, tone: 'ok' },
-            note: 'All successful',
-            detail: 'No failed attempts',
-          },
+          { label: 'Controls implemented', value: `${count('Implemented')} / ${controls.length}`, meter: { value: count('Implemented'), max: controls.length, tone: 'brand' }, note: `${count('In progress')} in progress, ${count('Planned')} planned` },
+          { label: 'Data Protection Impact Assessment', value: 'Planned', note: 'Required before real data is processed' },
+          { label: 'Identifiers in referral records', value: 'None', note: 'Pseudonymous IDs only' },
+          { label: 'Roles', value: roleAccess.length, note: `${roleAccess.reduce((s, r) => s + r.users, 0)} users in the pilot design` },
         ]}
       />
 
-      <div className="grid grid-main">
-        <div className="stack">
-          <Panel
-            eyebrow="Connected data sources"
-            title="Sync status and coverage"
-            flush
-            aside={<span className="tag">{dataSources.length} sources</span>}
-          >
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Source</th>
-                    <th>Status</th>
-                    <th className="r">Facilities</th>
-                    <th className="r">Records, 24h</th>
-                    <th>Frequency</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dataSources.map((src) => (
-                    <tr key={src.name}>
-                      <th scope="row">
-                        {src.name}
-                        <span className="cell-sub">{src.type}</span>
-                      </th>
-                      <td>
-                        <Pill>{src.status}</Pill>
-                      </td>
-                      <td className="r num">{src.facilitiesCovered}</td>
-                      <td className="r num">{src.recordsSynced.toLocaleString()}</td>
-                      <td>{src.syncFrequency}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-
-          <Panel
-            eyebrow="Access log"
-            title="Recent access events"
-            flush
-            aside={
-              <button type="button" className="btn btn-quiet btn-sm" onClick={() => setShowAllLog((v) => !v)}>
-                {showAllLog ? 'Show fewer' : `Show all ${accessLog.length}`}
-              </button>
-            }
-          >
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th>Resource</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logRows.map((log) => (
-                    <tr key={`${log.timestamp}-${log.user}`}>
-                      <td className="num nowrap">{log.timestamp}</td>
-                      <th scope="row">
-                        {log.user}
-                        <span className="cell-sub">{log.role}</span>
-                      </th>
-                      <td>{log.action}</td>
-                      <td className="mono">{log.resource}</td>
-                      <td>
-                        <Pill>{log.status}</Pill>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
+      <Panel title="Who sees what" eyebrow="Role-based access" flush>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Sees</th>
+                <th>Can</th>
+                <th>Cannot</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roleAccess.map((r) => (
+                <tr key={r.role}>
+                  <th scope="row">
+                    {r.role}
+                    <span className="cell-sub">{r.users} users</span>
+                  </th>
+                  <td className="cell-text">{r.sees}</td>
+                  <td>
+                    <ul className="permissions">
+                      {r.can.map((c) => (
+                        <li key={c}>{c}</li>
+                      ))}
+                    </ul>
+                  </td>
+                  <td className="cell-text">{r.cannot}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      </Panel>
 
-        <Panel eyebrow="Role permissions" title="Access control matrix" flush>
-          <ul className="rows">
-            {rolePermissions.map((role) => (
-              <li key={role.role} className="role">
-                <div className="role-head">
-                  <h3>{role.role}</h3>
-                  <span className="tag">{role.userCount} users</span>
-                </div>
-                <p className="row-text">{role.description}</p>
-                <ul className="permissions">
-                  {role.permissions.map((p) => (
-                    <li key={p}>{p}</li>
-                  ))}
-                </ul>
-                <p className="row-meta">
-                  Last access <span className="mono">{role.lastAccess}</span>
-                </p>
-              </li>
-            ))}
-          </ul>
-        </Panel>
-      </div>
-
-      <Panel
-        eyebrow="Governance register"
-        title="Data protection, AI provenance and human confirmation"
-        flush
-        footer={
-          <div className="callout">
-            <h3>Critical gaps</h3>
-            <p>
-              MFA rollout for all roles is in progress. Data retention policy automation is planned. Target resolution
-              is Q2 2027.
-            </p>
-          </div>
-        }
-      >
+      <Panel title="Safeguards register" eyebrow="Data protection, patient safety and responsible AI" flush>
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Control</th>
-                <th>Category</th>
+                <th>Area</th>
                 <th>Status</th>
                 <th>Reference</th>
               </tr>
             </thead>
             <tbody>
-              {governanceNotes.map((note) => (
-                <tr key={note.id}>
-                  <td className="mono">{note.id}</td>
+              {controls.map((c) => (
+                <tr key={c.id}>
+                  <td className="mono">{c.id}</td>
                   <th scope="row" className="cell-text">
-                    {note.title}
-                    <span className="cell-sub">{note.description}</span>
+                    {c.control}
+                    <span className="cell-sub">{c.detail}</span>
                   </th>
                   <td>
-                    <span className="tag">{note.category}</span>
+                    <span className="tag">{c.area}</span>
                   </td>
                   <td>
-                    <Pill>{note.status}</Pill>
+                    <Pill>{c.status}</Pill>
                   </td>
-                  <td className="cell-ref">{note.reference}</td>
+                  <td className="cell-ref">{c.reference}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+
+      <Panel
+        title="Recent access"
+        eyebrow="Access log"
+        flush
+        aside={
+          <button type="button" className="btn btn-quiet btn-sm" onClick={() => setShowAllLog((v) => !v)}>
+            {showAllLog ? 'Show fewer' : `Show all ${accessLog.length}`}
+          </button>
+        }
+      >
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Record</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((a) => (
+                <tr key={`${a.at}-${a.record}`}>
+                  <td className="nowrap">{formatDateTime(a.at)}</td>
+                  <th scope="row">
+                    {a.user}
+                    <span className="cell-sub">{a.role}</span>
+                  </th>
+                  <td>{a.action}</td>
+                  <td className="mono">{a.record}</td>
                 </tr>
               ))}
             </tbody>
