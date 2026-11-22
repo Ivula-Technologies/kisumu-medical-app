@@ -140,7 +140,7 @@ I don't diagnose, and I never handle emergencies. **If someone may harm themselv
         ...prev,
         {
           role: 'assistant',
-          content: `**Could not reach Groq Cloud AI**\n\n${err.message || 'Unable to complete request.'}\n\nPlease check your API key in **Settings**.`,
+          content: `**The assistant could not answer**\n\n${err.message || 'Unable to complete the request.'}`,
         },
       ]);
     } finally {

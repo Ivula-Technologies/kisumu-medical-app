@@ -47,10 +47,21 @@ npm run dev
 
 Open the address Vite prints. Add `?view=landing` for the public page. Changes are saved in your browser; use **Reset demo data** in the sidebar to start again.
 
+## AI key
+
+The browser never holds an API key. All AI requests go to the server function `api/chat.ts`, which reads the key from the `GROQ_API_KEY` environment variable, accepts requests only from this site, limits request size and rate, and allows only the approved models.
+
+- **On Vercel:** Project settings → Environment Variables → add `GROQ_API_KEY`, then redeploy.
+- **On your own computer:** create a file named `.env.local` in the project folder containing `GROQ_API_KEY=your-key`, then run `npm run dev`. Git ignores this file.
+
+Without a key the app still works; the AI buttons show that the assistant is not set up.
+
+**Security note:** an earlier version of this repository contained a Groq key in its source code, and the repository is public. That key must be revoked in the Groq account that created it. Removing it from the code does not stop anyone who already copied it.
+
 ## Before any real use
 
 - Complete a Data Protection Impact Assessment.
 - Replace the demo role switch with sign-in and enforced role-based access.
 - Validate thresholds, timeframes and the referral directory with the county.
 - Confirm on-call and crisis numbers. The app shows placeholders.
-- Move the Groq API key out of the source code and into a server-side environment variable.
+- Revoke the old Groq key that was published in the repository history.

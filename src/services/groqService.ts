@@ -1,41 +1,38 @@
-// Groq Cloud AI service for the Kisumu mental health referral and linkage tool
-// Supports OpenAI GPT-OSS-120B / GPT-OSS-20B via Groq Cloud
+// AI service for the Kisumu mental health referral and linkage tool.
+//
+// The browser never holds an API key. Every request goes to our own server
+// function at /api/chat, which adds the key from the server environment.
 
-export const DEFAULT_GROQ_KEY = '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';
 export const DEFAULT_MODEL = 'openai/gpt-oss-120b';
 
 export const AVAILABLE_MODELS = [
-  { id: 'openai/gpt-oss-120b', name: 'OpenAI GPT OSS 120B (High Reasoning - Recommended)' },
-  { id: 'openai/gpt-oss-20b', name: 'OpenAI GPT OSS 20B (Ultra-fast Decision Support)' },
-  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B' },
+  { id: 'openai/gpt-oss-120b', name: 'GPT-OSS 120B (recommended)' },
+  { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B (faster)' },
 ];
 
-export function getGroqApiKey(): string {
-  const custom = localStorage.getItem('kisumu_groq_api_key');
-  if (custom && custom.trim().length > 0) return custom.trim();
-  const envKey = import.meta.env.VITE_GROQ_API_KEY;
-  if (envKey && envKey.trim().length > 0) return envKey.trim();
-  return DEFAULT_GROQ_KEY;
-}
-
-export function setGroqApiKey(key: string): void {
-  if (!key || key.trim() === '') {
-    localStorage.removeItem('kisumu_groq_api_key');
-  } else {
-    localStorage.setItem('kisumu_groq_api_key', key.trim());
-  }
+// Older versions of the app could save a key in the browser. Remove it.
+try {
+  localStorage.removeItem('kisumu_groq_api_key');
+} catch {
+  // Storage may be unavailable; nothing to clean up.
 }
 
 export function getGroqModel(): string {
-  const custom = localStorage.getItem('kisumu_groq_model');
-  if (custom && custom.trim().length > 0) return custom.trim();
-  const envModel = import.meta.env.VITE_GROQ_MODEL;
-  if (envModel && envModel.trim().length > 0) return envModel.trim();
+  try {
+    const saved = localStorage.getItem('kisumu_groq_model');
+    if (saved && AVAILABLE_MODELS.some((m) => m.id === saved)) return saved;
+  } catch {
+    // Fall through to the default.
+  }
   return DEFAULT_MODEL;
 }
 
 export function setGroqModel(model: string): void {
-  localStorage.setItem('kisumu_groq_model', model);
+  try {
+    localStorage.setItem('kisumu_groq_model', model);
+  } catch {
+    // The choice just won't be remembered.
+  }
 }
 
 export interface ChatMessage {
@@ -51,78 +48,52 @@ export async function callGroqChat(
     max_tokens?: number;
   }
 ): Promise<string> {
-  const model = options?.model || getGroqModel();
-  const apiKey = getGroqApiKey();
-  const temperature = options?.temperature ?? 0.2;
-  const max_tokens = options?.max_tokens ?? 1200;
-
-  // First try serverless proxy endpoint if hosted on Vercel
+  let response: Response;
   try {
-    const res = await fetch('/api/chat', {
+    response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, model, temperature, max_tokens }),
+      body: JSON.stringify({
+        messages,
+        model: options?.model || getGroqModel(),
+        temperature: options?.temperature ?? 0.2,
+        max_tokens: options?.max_tokens ?? 1000,
+      }),
     });
-
-    if (res.ok) {
-      const data = await res.json();
-      const content = data.choices?.[0]?.message?.content;
-      if (content) return content;
-    }
   } catch {
-    // If /api/chat is not available (local Vite preview or direct client call), proceed to direct Groq API
+    throw new Error('Could not reach the server. Check your internet connection.');
   }
 
-  // Direct client call to Groq Cloud API
-  const directResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens,
-    }),
-  });
-
-  if (!directResponse.ok) {
-    const errText = await directResponse.text();
-    let parsedErr = '';
-    try {
-      const json = JSON.parse(errText);
-      parsedErr = json.error?.message || errText;
-    } catch {
-      parsedErr = errText;
-    }
-    throw new Error(`Groq API error (${directResponse.status}): ${parsedErr}`);
+  let data: { content?: string; error?: string } = {};
+  try {
+    data = await response.json();
+  } catch {
+    // Non-JSON reply, handled below.
   }
-
-  const result = await directResponse.json();
-  const output = result.choices?.[0]?.message?.content;
-  if (!output) {
-    throw new Error('No content returned from Groq API');
+  if (!response.ok || !data.content) {
+    throw new Error(data.error || `The AI request failed (${response.status}).`);
   }
-  return output;
+  return data.content;
 }
 
 export async function testGroqConnection(): Promise<{ ok: boolean; latencyMs: number; model: string; error?: string }> {
   const start = performance.now();
   try {
-    const text = await callGroqChat(
+    await callGroqChat(
       [
-        { role: 'system', content: 'You are a test ping responder. Reply ONLY with: OK' },
+        { role: 'system', content: 'Reply only with: OK' },
         { role: 'user', content: 'Ping' },
       ],
       { max_tokens: 10, temperature: 0 }
     );
-    const latency = Math.round(performance.now() - start);
-    return { ok: text.includes('OK') || text.length > 0, latencyMs: latency, model: getGroqModel() };
-  } catch (err: any) {
-    const latency = Math.round(performance.now() - start);
-    return { ok: false, latencyMs: latency, model: getGroqModel(), error: err.message || String(err) };
+    return { ok: true, latencyMs: Math.round(performance.now() - start), model: getGroqModel() };
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      latencyMs: Math.round(performance.now() - start),
+      model: getGroqModel(),
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
