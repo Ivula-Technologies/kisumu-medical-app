@@ -57,6 +57,30 @@ export function followUpLists(referrals: Referral[], now: Date): FollowUpList[] 
         `${formatDateTime(r.appointmentAt!)} at ${short(r)}${r.events.some((e) => e.kind === 'Reminder sent' && new Date(e.at).getTime() > t - 72 * HOUR) ? ' · reminder sent' : ''}`,
     },
     {
+      id: 'arrival',
+      title: 'Arrival checks due',
+      owner: 'Referring CHP',
+      why: 'The appointment has passed but the facility has not recorded it. The guidelines ask the referrer to call and confirm the person arrived and was received.',
+      tone: 'moderate',
+      items: referrals.filter(
+        (r) =>
+          r.status === 'Scheduled' &&
+          r.appointmentAt !== undefined &&
+          new Date(r.appointmentAt).getTime() < t &&
+          !r.events.some((e) => e.kind === 'Arrival check' && e.at >= r.appointmentAt!),
+      ),
+      detail: (r) => `Appointment was ${relative(r.appointmentAt!, now)} at ${short(r)}`,
+    },
+    {
+      id: 'handover',
+      title: 'Handover calls not yet made',
+      owner: 'Referring CHP',
+      why: 'The guidelines ask the referrer to phone the receiving provider so the person is expected.',
+      tone: 'info',
+      items: referrals.filter((r) => ['Awaiting acceptance', 'Accepted', 'Scheduled'].includes(r.status) && !r.events.some((e) => e.kind === 'Handover call')),
+      detail: (r) => `Sent ${relative(r.createdAt, now)} to ${short(r)}`,
+    },
+    {
       id: 'feedback',
       title: 'Feedback owed to referrers',
       owner: 'Receiving facility',

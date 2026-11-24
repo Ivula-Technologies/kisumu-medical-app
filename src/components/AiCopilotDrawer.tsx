@@ -25,8 +25,8 @@ const DEFAULT_QUESTIONS: Record<string, string[]> = {
   ],
   'New referral': [
     'How should a CHP explain a positive screening result without stigma?',
-    'What does a positive PHQ-9 item 9 require under mhGAP?',
-    'When should alcohol use be referred before depression?',
+    'What does a positive ASQ question 5 require under the national guidelines?',
+    'How should a CHP ask the CAGE-AID questions sensitively?',
   ],
   Referrals: [
     'What should good feedback to a CHP include after a referral is seen?',

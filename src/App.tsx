@@ -44,7 +44,7 @@ const NAV_GROUPS: Array<{ label: string; tabs: Tab[] }> = [
 ]
 
 const isTab = (value: string): value is Tab => (TABS as readonly string[]).includes(value)
-const KEYS = { referrals: 'kisumu_mh_referrals_v1', escalations: 'kisumu_mh_escalations_v1', role: 'kisumu_mh_role' }
+const KEYS = { referrals: 'kisumu_mh_referrals_v2', escalations: 'kisumu_mh_escalations_v2', role: 'kisumu_mh_role' }
 
 function loadStored<T>(key: string, fallback: T): T {
   try {
@@ -155,6 +155,8 @@ function App() {
       trace: `Tracing outcome recorded. ${facility} has been asked to rebook.`,
       redirect: `${id} redirected to ${facility}, which has been notified.`,
       chase: `Follow-up with ${facility} recorded for ${id}.`,
+      handover: `Handover call to ${facility} recorded for ${id}.`,
+      arrivalCheck: `Arrival check recorded for ${id}.`,
     }
     setToast(messages[action.type])
   }
@@ -214,11 +216,11 @@ function App() {
 
   const exportCurrent = () => {
     const referralRows: CsvRow[] = [
-      ['Referral', 'Client', 'Sex', 'Age band', 'Settlement', 'Community unit', 'Referred by', 'To facility', 'Service', 'Urgency', 'Status', 'Created', 'Due', 'Timeframe', 'Appointment', 'PHQ-9', 'PHQ-9 item 9', 'GAD-7', 'AUDIT-C', 'Consent', 'Missing fields'],
+      ['Referral', 'Client', 'Sex', 'Age band', 'Settlement', 'Community unit', 'Referred by', 'To facility', 'Service', 'Urgency', 'Status', 'Created', 'Due', 'Timeframe', 'Appointment', 'PHQ-9', 'PHQ-9 item 9', 'GAD-7', 'CAGE-AID', 'Consent', 'Missing fields'],
       ...visible.map((r) => [
         r.id, r.client, r.sex, r.ageBand, r.settlement, r.communityUnit, r.referredBy.id, facilityById[r.toFacilityId]?.name ?? r.toFacilityId, r.service, r.urgency, r.status,
         formatDateTime(r.createdAt), formatDateTime(dueAt(r).toISOString()), sla(r, now).label, r.appointmentAt ? formatDateTime(r.appointmentAt) : '',
-        r.screening.phq9 ?? '', r.screening.phq9Item9 ?? '', r.screening.gad7 ?? '', r.screening.auditC ?? '', r.consentRecorded ? 'Yes' : 'No', missingFields(r).join('; '),
+        r.screening.phq9 ?? '', r.screening.phq9Item9 ?? '', r.screening.gad7 ?? '', r.screening.cageAid ?? '', r.consentRecorded ? 'Yes' : 'No', missingFields(r).join('; '),
       ]),
     ]
     const m = linkageMetrics(visible, now)

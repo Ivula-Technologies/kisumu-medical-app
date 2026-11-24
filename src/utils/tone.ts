@@ -56,6 +56,11 @@ const TONES: Record<string, Tone> = {
   'clinician on the line': 'high',
   'handed over': 'info',
   planned: 'neutral',
+  'safety check': 'high',
+  acute: 'critical',
+  'non-acute': 'high',
+  'national guideline': 'ok',
+  placeholder: 'moderate',
   tracking: 'neutral',
 }
 

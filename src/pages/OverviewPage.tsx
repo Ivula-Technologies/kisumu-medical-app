@@ -78,9 +78,8 @@ export function OverviewPage({ role, referrals, escalations, now, onOpenEscalati
           <span className="dot dot-critical pulse" aria-hidden="true" />
           <span>
             <strong>
-              {active.length} emergency escalation{active.length > 1 ? 's' : ''} active.
-            </strong>{' '}
-            {active.map((e) => `${e.id} in ${e.settlement}, raised ${relative(e.raisedAt, now)}`).join('; ')}
+              {active.length} escalation{active.length > 1 ? 's' : ''} active, {active.filter((e) => e.acuity === 'Acute').length} acute.</strong>{' '}
+            {active.map((e) => `${e.id} (${e.acuity.toLowerCase()}) in ${e.settlement}, raised ${relative(e.raisedAt, now)}`).join('; ')}
           </span>
           <span className="alert-link">
             Open <Icon name="arrow" size={14} />

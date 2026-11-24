@@ -133,6 +133,7 @@ function ReferralDetail({ referral: r, role, now, onAction }: { referral: Referr
   const actions = allowedActions(role, r)
   const [note, setNote] = useState('')
   const [declineNote, setDeclineNote] = useState('')
+  const [arrivalNote, setArrivalNote] = useState('')
   const [when, setWhen] = useState(() => {
     const d = new Date(now.getTime() + 2 * 24 * 3_600_000)
     d.setHours(9, 0, 0, 0)
@@ -235,6 +236,29 @@ function ReferralDetail({ referral: r, role, now, onAction }: { referral: Referr
 
       <Panel title="Next step" eyebrow={actions.length ? 'Your action' : 'Waiting on others'}>
         {actions.length === 0 ? <p className="muted">{noActionText}</p> : null}
+
+        {actions.includes('handover') ? (
+          <div className="action-row">
+            <button type="button" className="btn btn-primary" onClick={() => onAction({ type: 'handover' })}>
+              <Icon name="phone" size={16} /> Record handover call to {facility?.short}
+            </button>
+            <span className="muted">The national guidelines ask the referrer to phone the receiving provider.</span>
+          </div>
+        ) : null}
+
+        {actions.includes('arrivalCheck') ? (
+          <div className="action-block">
+            <label className="field-label" htmlFor="arrival-note">
+              Arrival check: the appointment has passed. Call to confirm the person arrived and was received.
+            </label>
+            <div className="inline-form">
+              <input id="arrival-note" className="input" placeholder="For example: she went and was seen; or he did not go, will rebook" value={arrivalNote} onChange={(e) => setArrivalNote(e.target.value)} />
+              <button type="button" className="btn" disabled={!arrivalNote.trim()} onClick={() => onAction({ type: 'arrivalCheck', note: arrivalNote.trim() })}>
+                Record call
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {actions.includes('accept') ? (
           <div className="action-row">

@@ -77,7 +77,7 @@ export function notificationsFor(role: Role, referrals: Referral[], escalations:
 
   if (role.id === 'county') {
     for (const e of escalations.filter((x) => x.status !== 'Closed' && x.status !== 'Handed over')) {
-      list.push({ id: `esc-${e.id}`, tone: 'critical', title: `Emergency ${e.id} is active`, detail: `${e.settlement} · ${e.status}`, escalationId: e.id })
+      list.push({ id: `esc-${e.id}`, tone: e.acuity === 'Acute' ? 'critical' : 'high', title: e.acuity === 'Acute' ? `Emergency ${e.id} is active` : `Same-day safety check ${e.id}`, detail: `${e.settlement} · ${e.status}`, escalationId: e.id })
     }
   }
 
@@ -107,6 +107,12 @@ export function notificationsFor(role: Role, referrals: Referral[], escalations:
         list.push({ id: `dec-${r.id}`, tone: 'critical', title: `${r.id} was declined by ${f}`, detail: 'Redirect to another facility', referralId: r.id })
       }
       if (role.id === 'chp') {
+        if (r.status === 'Scheduled' && r.appointmentAt && new Date(r.appointmentAt).getTime() < now.getTime() && !r.events.some((e) => e.kind === 'Arrival check' && e.at >= r.appointmentAt!)) {
+          list.push({ id: `arr-${r.id}`, tone: 'moderate', title: `Arrival check due for ${r.id}`, detail: `Call to confirm ${r.client} reached ${f}`, referralId: r.id })
+        }
+        if (['Awaiting acceptance', 'Accepted', 'Scheduled'].includes(r.status) && !r.events.some((e) => e.kind === 'Handover call')) {
+          list.push({ id: `ho-${r.id}`, tone: 'info', title: `Handover call not recorded for ${r.id}`, detail: `Phone ${f} to tell them about the referral`, referralId: r.id })
+        }
         if (r.status === 'Completed') {
           const fb = [...r.events].reverse().find((e) => e.kind === 'Completed')
           if (fb && now.getTime() - new Date(fb.at).getTime() < 7 * 24 * HOUR) {

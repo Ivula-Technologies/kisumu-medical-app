@@ -11,7 +11,7 @@ interface LandingPageProps {
 }
 
 const PATHWAY: Array<{ icon: IconName; title: string; text: string }> = [
-  { icon: 'user', title: 'A CHP screens at home', text: 'PHQ-9, GAD-7 and AUDIT-C on a phone, with consent, working offline.' },
+  { icon: 'user', title: 'A CHP screens at home', text: 'PHQ-9, GAD-7, CAGE-AID and the ASQ suicide screen from the national guidelines, with consent.' },
   { icon: 'route', title: 'Rules set urgency and route', text: 'Urgent or routine, and the nearest facility with the right service and space.' },
   { icon: 'calendar', title: 'The facility accepts and books', text: 'Notified at once. Accepts or declines with a reason, then books a time.' },
   { icon: 'bell', title: 'Reminders and tracing', text: 'Reminders before the visit. A missed visit alerts the CHP to trace.' },

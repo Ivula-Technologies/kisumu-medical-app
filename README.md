@@ -19,14 +19,20 @@ All data is synthetic. Every person is fictional and identified only by a pseudo
 | Acceptance and completion tracking | Each referral moves through Referred, Accepted, Scheduled, Attended and Feedback sent, against its timeframe (**Referrals**) |
 | Feedback to referring facilities and CHPs | The receiving clinician sends the outcome back and closes the loop |
 | Alerts for missed appointments | Missed visits go to a CHP tracing worklist |
-| Priority risk escalation | A positive PHQ-9 item 9 or any red flag opens the **Escalations** path: phone the on-call clinician. These cases never enter the referral queue |
+| Priority risk escalation | An acute ASQ or any psychiatric emergency opens an emergency phone escalation; a non-acute ASQ opens a same-day safety check (**Escalations**). Neither enters the referral queue |
 
 ## How decisions are made
 
 - **Rules, not the model, decide.** Risk tier, service and destination come from fixed, testable rules in `src/services/referralProtocol.ts`.
-- **Screening thresholds** follow common published cut-offs (PHQ-9, GAD-7, AUDIT-C with sex-specific thresholds). They are placeholders until the County Mental Health Technical Team validates them against the 2024 National Clinical Guidelines.
-- **Timeframes** are urgent within 3 days and routine within 14 days, also placeholders for the county to confirm. Emergency escalations target a clinician response within 30 minutes.
-- **The AI only drafts.** The language model (gpt-oss-120b on Groq Cloud) drafts referral notes for the receiving clinician and a weekly linkage brief for the county coordinator, from pseudonymised or aggregated fields. Every output is labelled for review. It never handles emergencies.
+- **The rules follow Kenya's National Clinical Guidelines for Management of Common Mental Disorders (2024)** wherever the guidelines specify one:
+  - Suicide risk uses the **ASQ** (Annex 6). Yes to question 5 is acute: an emergency phone escalation. Yes to any of questions 1–4, or refusing to answer, is non-acute: a same-day safety check by a clinician. A positive PHQ-9 item 9 prompts the ASQ.
+  - Substance use uses **CAGE-AID** (Annex 4). One yes is a positive screen.
+  - **GAD-7** bands follow Annex 5. Mild depression and anxiety go to counselling first, as the guidelines recommend psychotherapy for mild cases.
+  - Psychiatric emergencies follow section 3.9. Children showing neglect or abuse are linked to the Children's Office (3.7). Perinatal women are prompted for EPDS timing and infanticide risk assessment (3.10).
+  - **Referral and linkage** follows section 4: the referrer phones the receiving provider, then calls again after the appointment to confirm the person arrived.
+  - After a suicide crisis, the person is followed up daily at first, then weekly, for at least two months (3.9).
+- **Placeholders remain where the guidelines are silent:** PHQ-9 cut-offs (the guidelines use PHQ-9 but do not print them), urgency tiers, timeframes (urgent within 3 days, routine within 14), the 30-minute emergency response target and on-call numbers. These need County Mental Health Technical Team sign-off. The Data & Governance page lists every rule with its source.
+- **The AI only drafts.** The language model drafts referral notes and a weekly linkage brief from pseudonymised or aggregated fields. Every output is labelled for review. It never handles emergencies.
 
 ## Roles
 

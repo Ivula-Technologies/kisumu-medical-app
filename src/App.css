@@ -3252,6 +3252,98 @@ textarea.input {
   white-space: nowrap;
 }
 
+.yesno {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+}
+
+.yn {
+  min-width: 44px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.yn.active.yes {
+  border-color: var(--critical-mark);
+  background: var(--critical-soft);
+  color: var(--critical);
+}
+
+.yn.active.no {
+  border-color: var(--ok-mark);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.question-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.question-list li.q-muted {
+  opacity: 0.6;
+}
+
+.asq-section.highlight {
+  margin-inline: -12px;
+  padding: 14px 12px 12px;
+  border: 1px solid var(--high-line);
+  border-radius: 12px;
+  background: var(--high-soft);
+}
+
+.form-section.asq-section.highlight + .form-section {
+  border-top: 0;
+}
+
+.tag-warn {
+  background: var(--high-soft);
+  color: var(--high);
+}
+
+.btn-warn {
+  border-color: var(--high);
+  background: var(--high);
+  color: #fff;
+}
+
+.btn-warn:hover:not(:disabled) {
+  border-color: #93370d;
+  background: #93370d;
+}
+
+.emergency.safety {
+  border-color: var(--high-mark);
+  background: var(--high-soft);
+  box-shadow: 0 0 0 4px rgba(240, 140, 46, 0.1);
+}
+
+.emergency.safety .emergency-eyebrow,
+.emergency.safety .emergency-reasons {
+  color: var(--high);
+}
+
+.stack .panel .sub-head + .protocol {
+  margin-bottom: 14px;
+}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 
 @media (max-width: 1180px) {

@@ -16,6 +16,8 @@ export type ReferralAction =
   | { type: 'trace'; note: string }
   | { type: 'redirect'; facilityId: string }
   | { type: 'chase' }
+  | { type: 'handover' }
+  | { type: 'arrivalCheck'; note: string }
 
 export type ActionType = ReferralAction['type']
 
@@ -30,6 +32,15 @@ export function allowedActions(role: Role, r: Referral): ActionType[] {
     Attended: ['feedback'],
   }
   if (isReceiver(role, r)) actions.push(...(receiving[r.status] ?? []))
+  if (isReferrerSide(role, r) && role.id !== 'county') {
+    // Guidelines section 4: the referrer phones the receiving provider, then
+    // calls again to confirm the person arrived and was received.
+    const open = ['Awaiting acceptance', 'Accepted', 'Scheduled'].includes(r.status)
+    if (open && !r.events.some((e) => e.kind === 'Handover call')) actions.push('handover')
+    if (r.status === 'Scheduled' && r.appointmentAt && new Date(r.appointmentAt).getTime() < Date.now() && !r.events.some((e) => e.kind === 'Arrival check' && e.at >= r.appointmentAt!)) {
+      actions.push('arrivalCheck')
+    }
+  }
   if (isReferrerSide(role, r)) {
     if (r.status === 'Missed') actions.push('trace')
     if (r.status === 'Declined') actions.push('redirect')
@@ -85,5 +96,9 @@ export function applyAction(r: Referral, action: ReferralAction, role: Role, now
     }
     case 'chase':
       return { ...r, events: add('Note', 'County coordinator followed up with the receiving facility') }
+    case 'handover':
+      return { ...r, events: add('Handover call', `Phoned ${facilityById[r.toFacilityId]?.short ?? 'the facility'} to tell them about the referral`) }
+    case 'arrivalCheck':
+      return { ...r, events: add('Arrival check', action.note) }
   }
 }

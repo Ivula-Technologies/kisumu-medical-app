@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { accessLog, controls, roleAccess } from '../services/governanceData'
+import { PROTOCOL_RULES } from '../services/referralProtocol'
 import { KpiStrip, Panel, Pill } from '../components/ui'
 import { formatDateTime } from '../utils/time'
 
@@ -19,6 +20,49 @@ export function GovernancePage() {
           { label: 'Roles', value: roleAccess.length, note: `${roleAccess.reduce((s, r) => s + r.users, 0)} users in the pilot design` },
         ]}
       />
+
+      <Panel
+        title="Referral rules and where they come from"
+        eyebrow="National Clinical Guidelines for Management of Common Mental Disorders, 2024"
+        flush
+        aside={
+          <span className="tag">
+            {PROTOCOL_RULES.filter((r) => r.source === 'National guideline').length} from the guidelines · {PROTOCOL_RULES.filter((r) => r.source === 'Placeholder').length} placeholders
+          </span>
+        }
+        footer={
+          <p className="field-hint">
+            Placeholders cover what the guidelines leave open. They need sign-off from the County Mental Health Technical Team before real use.
+          </p>
+        }
+      >
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Area</th>
+                <th>Rule</th>
+                <th>Source</th>
+                <th>Reference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {PROTOCOL_RULES.map((r) => (
+                <tr key={r.rule}>
+                  <th scope="row" className="nowrap">
+                    {r.area}
+                  </th>
+                  <td className="cell-text">{r.rule}</td>
+                  <td>
+                    <Pill>{r.source}</Pill>
+                  </td>
+                  <td className="cell-ref">{r.reference}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
 
       <Panel title="Who sees what" eyebrow="Role-based access" flush>
         <div className="table-wrap">

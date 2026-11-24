@@ -36,7 +36,7 @@ export function PilotMEPage({ referrals, now }: { referrals: Referral[]; now: Da
   const active = facilities.filter((f) => f.activeInPilot).length
 
   const indicators: Indicator[] = [
-    { id: 'PI-01', area: 'Digital screening', name: 'People screened with approved digital tools', value: 1284, unit: 'count', target: null, targetLabel: 'Set with the funder', source: 'Synthetic', how: 'Screenings recorded in eCHIS with PHQ-9, GAD-7 or AUDIT-C' },
+    { id: 'PI-01', area: 'Digital screening', name: 'People screened with approved digital tools', value: 1284, unit: 'count', target: null, targetLabel: 'Set with the funder', source: 'Synthetic', how: 'Screenings recorded in eCHIS with PHQ-9, GAD-7, CAGE-AID or ASQ' },
     { id: 'PI-02', area: 'Early identification', name: 'Screening-positive people who received a clinical assessment', value: due.length ? (assessed / due.length) * 100 : null, unit: '%', target: 80, targetLabel: '80% or more', source: 'Live', how: 'Attended referrals out of those whose timeframe has ended' },
     { id: 'PI-03', area: 'Clinical assessment', name: 'Frontline health workers trained and supported', value: 268, unit: 'count', target: 327, targetLabel: '327', source: 'Synthetic', how: 'Training and mentorship register' },
     { id: 'PI-04', area: 'Referral effectiveness', name: 'Referrals completed within the clinically appropriate timeframe', value: m.withinTimeframe, unit: '%', target: 75, targetLabel: '75% or more', source: 'Live', how: 'Seen within 3 days (urgent) or 14 days (routine)' },

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import {
-  auditCBand,
+  asqResult,
+  cageAidBand,
   gad7Band,
   phq9Band,
   sla,
@@ -60,7 +61,9 @@ export function ScoreGrid({ screening }: { screening: ScreeningInput }) {
   if (screening.phq9 !== null) cells.push({ tool: 'PHQ-9', score: `${screening.phq9}/27`, band: phq9Band(screening.phq9) })
   if (screening.phq9Item9 !== null) cells.push({ tool: 'Item 9', score: `${screening.phq9Item9}/3`, band: screening.phq9Item9 > 0 ? 'Positive' : 'Negative' })
   if (screening.gad7 !== null) cells.push({ tool: 'GAD-7', score: `${screening.gad7}/21`, band: gad7Band(screening.gad7) })
-  if (screening.auditC !== null) cells.push({ tool: 'AUDIT-C', score: `${screening.auditC}/12`, band: auditCBand(screening.auditC, screening.sex) })
+  if (screening.cageAid !== null) cells.push({ tool: 'CAGE-AID', score: `${screening.cageAid}/4`, band: cageAidBand(screening.cageAid) })
+  const asq = asqResult(screening)
+  if (asq !== 'Not used') cells.push({ tool: 'ASQ', score: asq === 'Negative' ? 'Negative' : 'Positive', band: asq })
   return (
     <dl className="scores">
       {cells.map((c) => (
